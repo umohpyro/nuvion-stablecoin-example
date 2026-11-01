@@ -18,6 +18,10 @@ A small treasury app that holds USDC and USDT in [Nuvion](https://docs.nuvion.co
 | `/api/webhooks/nuvion` | Signature verification, duplicate-safe event record | none (receives `outflows.*` and `inflows.*` events) |
 | Setup `/setup` | First-run checks and an entity lookup | `GET /entities` |
 
+## Deploying
+
+The button above creates the project. After the first deploy, set `DEMO_PASSWORD`, then register `https://<your-domain>/api/webhooks/nuvion` with `POST /entity-webhooks`, put the returned `secret` in `NUVION_WEBHOOK_SECRET` and redeploy. `/setup` shows the URL and the events to subscribe to.
+
 ## Run it
 
 You need Node.js 20.9 or later, a Nuvion **sandbox** account, and an approved entity.
@@ -71,6 +75,7 @@ These come from running the flows against the sandbox. Each one shapes the code.
 12. **Cloudflare blocks the default user agent of some HTTP libraries** (Python's, for one). `src/lib/nuvion.ts` sends its own `User-Agent`.
 13. **Validate addresses before you call Nuvion, but know the limit.** An EVM address is valid on every EVM chain, so no check can tell Base from Ethereum. The send screen therefore makes the operator confirm the network before sending. `validateAddress` doesn't verify the EIP-55 checksum; Nuvion validates the format again.
 14. **A valid webhook signature doesn't mean the latest state.** The status page always reads the transfer from Nuvion and only uses the webhook to show that an event arrived.
+15. **Registering a webhook needs every event in a group.** `POST /entity-webhooks` with `outflows` set returns `422` until all five `outflows` events, both `inflows` events and all three `account_details` events are present as booleans. The signing secret comes back once, in `data.secret`.
 
 ## Before this is a real treasury
 
