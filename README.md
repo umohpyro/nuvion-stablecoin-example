@@ -32,6 +32,7 @@ npm run dev
 |---|---|
 | `NUVION_API_KEY` | Sandbox dashboard, Settings > Developers |
 | `NUVION_ENTITY_ID` | Open `/setup`: it lists your approved entities |
+| `DEMO_PASSWORD` | Optional. Asks for this password (any username) on every page except the webhook route. Set it on any public deployment, because the app has no sign-in |
 | `NUVION_WEBHOOK_SECRET` | Optional. Returned once when you register a webhook. `/setup` shows the URL to register |
 
 The entity needs a fiat account with a balance to convert from. Then use **Deposit** to add a USDC or USDT account on a network, and **Convert** to fund it.
