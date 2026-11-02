@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
   // Transfer events are outflows.* and inflows.*; their data.id is the transfer ID.
   if (body.event && /^(outflows|inflows)\./.test(body.event) && body.data?.id) {
-    record(body.data.id, { eventId: request.headers.get(EVENT_ID_HEADER), event: body.event, status: body.data.status ?? "", receivedAt: Date.now() });
+    await record(body.data.id, { eventId: request.headers.get(EVENT_ID_HEADER), event: body.event, status: body.data.status ?? "", receivedAt: Date.now() });
   }
   return Response.json({ received: true });
 }

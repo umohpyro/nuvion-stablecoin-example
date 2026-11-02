@@ -37,7 +37,7 @@ async function Transfer({ params }: { params: PageProps<"/activity/[id]">["param
     if (e instanceof NuvionError && e.httpStatus === 404) notFound();
     throw e;
   }
-  const seen = lastEvent(t.id);
+  const seen = await lastEvent(t.id);
   const unsettled = t.status === "new" || t.status === "pending";
   const Icon = t.status === "successful" ? CircleCheck : t.status === "failed" ? CircleAlert : Clock;
   const tone = t.status === "successful" ? "text-emerald-600" : t.status === "failed" ? "text-destructive" : "text-amber-600";

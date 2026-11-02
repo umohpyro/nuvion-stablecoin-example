@@ -85,7 +85,7 @@ These come from running the flows against the sandbox. Each one shapes the code.
 
 This example leaves out what needs a database or your own controls. Add these before moving real funds:
 
-- **Persistent event log.** The webhook route keeps the last event per transfer in memory. That is empty after a restart and not shared between serverless instances. Store event IDs in a database and ignore repeats.
+- **A real event log.** The webhook route stores the last event per transfer in Upstash Redis when `KV_REST_API_URL` and `KV_REST_API_TOKEN` are set (the Vercel Upstash integration sets them), and in memory otherwise. Events expire after 7 days. Keep a database table of every event if you need history.
 - **Authentication and roles.** Anyone who can open this app can send funds. Put it behind sign-in, and require a second approver above a limit.
 - **Allow list by default.** Set `SEND_ONLY_TO_SAVED=true` on any shared deployment, and add an approval step for new recipients.
 - **Rate limiting and an audit trail** on the server actions.
@@ -99,7 +99,7 @@ src/lib/treasury.ts     Accounts with wallets, own counterparty, payment details
 src/lib/chains.ts       Networks and address validation
 src/lib/money.ts        Amounts in the smallest unit
 src/lib/webhook.ts      Signature verification
-src/lib/events.ts       Last webhook event per transfer (in memory)
+src/lib/events.ts       Last webhook event per transfer (Upstash Redis, or memory)
 src/app/actions.ts      createWallet, getQuote, convert, sendStablecoin server actions
 src/app/activity/[id]   Transfer status read from Nuvion
 ```
