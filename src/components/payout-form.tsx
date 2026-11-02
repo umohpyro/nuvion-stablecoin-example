@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { getPayoutQuote, payout } from "@/app/actions";
 import type { AccountOption } from "@/components/convert-form";
+import { AmountInput } from "@/components/amount-input";
 import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,7 +84,7 @@ export function PayoutForm({ accounts }: { accounts: AccountOption[] }) {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="po-amount">Amount ({from ? ticker(from.currency) : ""})</Label>
-          <Input id="po-amount" inputMode="decimal" value={amount} onChange={(e) => { setAmount(e.target.value); setQuote(null); }} placeholder="5.00" aria-invalid={Boolean(amount && problems[0])} required />
+          <AmountInput id="po-amount" value={amount} onValue={(v) => { setAmount(v); setQuote(null); }} placeholder="5.00" maxMinor={from?.availableMinor} aria-invalid={Boolean(amount && problems[0])} required />
           {amount && problems[0] && <p className="text-sm text-destructive">{problems[0]}</p>}
         </div>
       </div>

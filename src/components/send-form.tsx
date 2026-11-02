@@ -7,6 +7,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { sendStablecoin } from "@/app/actions";
 import type { AccountOption } from "@/components/convert-form";
+import { AmountInput } from "@/components/amount-input";
 import { NativeSelect } from "@/components/native-select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -169,7 +170,7 @@ export function SendForm({ accounts, recipients, savedOnly }: { accounts: SendAc
       )}
       <div className="space-y-1.5">
         <Label htmlFor="sd-amount">Amount ({asset})</Label>
-        <Input id="sd-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="5.00" className="max-w-48" aria-invalid={Boolean(amountError)} required />
+        <AmountInput id="sd-amount" value={amount} onValue={setAmount} placeholder="5.00" maxMinor={account?.availableMinor} aria-invalid={Boolean(amountError)} required />
         {amountError && <p className="text-sm text-destructive">{amountError}</p>}
       </div>
       <Button type="submit" disabled={!ready}>Review</Button>

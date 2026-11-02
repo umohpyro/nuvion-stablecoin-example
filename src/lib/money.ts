@@ -18,4 +18,7 @@ export function parseAmount(input: string): number | null {
   return minor > 0 ? minor : null;
 }
 
+/** 1250 becomes "12.50": the form that parseAmount reads back. */
+export const toDecimal = (minor: number) => (minor / 100).toFixed(2);
+
 export const formatDate = (ms: number) => new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(ms);

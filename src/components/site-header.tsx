@@ -17,7 +17,9 @@ const LINKS = [
 
 /** `gated` is true when a sign-in password is configured. The sign-in page itself shows no navigation. */
 export function SiteHeader({ gated }: { gated: boolean }) {
-  const signedOutPage = usePathname() === "/login";
+  const pathname = usePathname();
+  const signedOutPage = pathname === "/login";
+  const current = (href: string) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
   return (
     <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 px-4 py-3 sm:px-6">
@@ -28,7 +30,12 @@ export function SiteHeader({ gated }: { gated: boolean }) {
         {!signedOutPage && (
           <nav aria-label="Main" className="flex items-center gap-1 text-sm font-medium">
             {LINKS.map((l) => (
-              <Link key={l.href} href={l.href} className="rounded-lg px-2.5 py-2 text-muted-foreground hover:bg-muted hover:text-foreground">
+              <Link
+                key={l.href}
+                href={l.href}
+                aria-current={current(l.href) ? "page" : undefined}
+                className={`rounded-lg px-2.5 py-2 hover:bg-muted ${current(l.href) ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              >
                 {l.label}
               </Link>
             ))}

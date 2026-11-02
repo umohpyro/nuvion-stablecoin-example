@@ -4,9 +4,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { convert, getQuote } from "@/app/actions";
+import { AmountInput } from "@/components/amount-input";
 import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatAmount } from "@/lib/money";
 
@@ -86,9 +86,17 @@ export function ConvertForm({ accounts }: { accounts: AccountOption[] }) {
           </NativeSelect>
         </div>
       </div>
+      <Button type="button" variant="ghost" size="sm" onClick={edit(() => {
+          setFromId(toId);
+          setToId(fromId);
+          // The old amount was in the other currency and may exceed this balance.
+          setAmount("");
+        })}>
+        Swap direction
+      </Button>
       <div className="space-y-1.5">
         <Label htmlFor="cv-amount">Amount to convert{from ? ` (${from.currency === "USC" ? "USDC" : from.currency === "UST" ? "USDT" : from.currency})` : ""}</Label>
-        <Input id="cv-amount" inputMode="decimal" placeholder="10.00" value={amount} onChange={(e) => edit(() => setAmount(e.target.value))()} className="max-w-48" required />
+        <AmountInput id="cv-amount" placeholder="10.00" value={amount} onValue={(v) => edit(() => setAmount(v))()} maxMinor={from?.availableMinor} required />
       </div>
 
       {quote && to && from && (

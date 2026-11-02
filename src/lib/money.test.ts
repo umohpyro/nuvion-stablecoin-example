@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { formatAmount, parseAmount } from "./money.ts";
+import { formatAmount, parseAmount, toDecimal } from "./money.ts";
+
+test("toDecimal round-trips through parseAmount", () => {
+  for (const minor of [1, 99, 100, 1250, 1325, 100000001]) assert.equal(parseAmount(toDecimal(minor)), minor);
+});
 
 test("parses decimal input into the smallest unit", () => {
   assert.equal(parseAmount("12"), 1200);
