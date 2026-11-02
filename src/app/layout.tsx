@@ -16,7 +16,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${figtree.variable} ${mono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
-        <SiteHeader />
+        <SiteHeader gated={Boolean(process.env.DEMO_PASSWORD?.trim())} />
         <main className="flex-1">{children}</main>
         <footer className="border-t py-8 text-center text-sm text-muted-foreground">
           <p>An example app on the Nuvion sandbox. Nothing here is real and no funds move on-chain.</p>

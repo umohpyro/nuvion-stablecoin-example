@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { signOut } from "@/app/login/actions";
 import { Badge } from "@/components/ui/badge";
 
@@ -12,7 +15,9 @@ const LINKS = [
   { href: "/activity", label: "Activity" },
 ];
 
-export function SiteHeader() {
+/** `gated` is true when a sign-in password is configured. The sign-in page itself shows no navigation. */
+export function SiteHeader({ gated }: { gated: boolean }) {
+  const signedOutPage = usePathname() === "/login";
   return (
     <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 px-4 py-3 sm:px-6">
@@ -20,18 +25,20 @@ export function SiteHeader() {
           <span className="text-lg font-extrabold tracking-tight">Stablecoin Treasury</span>
           <Badge variant="secondary">Sandbox</Badge>
         </Link>
-        <nav aria-label="Main" className="flex items-center gap-1 text-sm font-medium">
-          {LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className="rounded-lg px-2.5 py-2 text-muted-foreground hover:bg-muted hover:text-foreground">
-              {l.label}
-            </Link>
-          ))}
-          {process.env.DEMO_PASSWORD && (
-            <form action={signOut}>
-              <button type="submit" className="rounded-lg px-2.5 py-2 text-muted-foreground hover:bg-muted hover:text-foreground">Sign out</button>
-            </form>
-          )}
-        </nav>
+        {!signedOutPage && (
+          <nav aria-label="Main" className="flex items-center gap-1 text-sm font-medium">
+            {LINKS.map((l) => (
+              <Link key={l.href} href={l.href} className="rounded-lg px-2.5 py-2 text-muted-foreground hover:bg-muted hover:text-foreground">
+                {l.label}
+              </Link>
+            ))}
+            {gated && (
+              <form action={signOut}>
+                <button type="submit" className="rounded-lg px-2.5 py-2 text-muted-foreground hover:bg-muted hover:text-foreground">Sign out</button>
+              </form>
+            )}
+          </nav>
+        )}
       </div>
     </header>
   );

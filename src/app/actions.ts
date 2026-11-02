@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { CHAINS, CHAIN_IDS, validateAddress, type Chain } from "@/lib/chains";
+import { destination } from "@/lib/destination";
 import { ConfigError, env } from "@/lib/env";
 import { UserError } from "@/lib/errors";
 import { formatAmount, isStablecoin, parseAmount, ticker } from "@/lib/money";
@@ -176,16 +177,10 @@ export async function sendStablecoin(input: z.input<typeof sendSchema>) {
     const amount = parseAmount(v.amount);
     if (!amount) throw new UserError("Enter an amount greater than zero with at most 2 decimals.");
 
-    // The saved recipient, not the browser, decides the network and address.
+    // The saved recipient, not the browser, decides the network and address; the allow list is enforced here.
     const saved = v.recipientId ? await getRecipient(v.recipientId) : null;
     if (v.recipientId && !saved) throw new UserError("That saved recipient no longer exists.");
-    if (!saved && env.sendOnlyToSaved) throw new UserError("This treasury only sends to saved recipients. Add one on the Recipients page.");
-    const chain = saved?.chain ?? v.chain;
-    const address = saved?.address ?? v.address.trim();
-    const holder = saved?.name ?? v.recipient;
-    if (!holder) throw new UserError("Enter the recipient's name.");
-    const bad = validateAddress(chain, address);
-    if (bad) throw new UserError(bad);
+    const { chain, address, holder } = destination(saved, { chain: v.chain, address: v.address, name: v.recipient }, env.sendOnlyToSaved);
 
     const account = (await loadAccounts()).find((a) => a.id === v.accountId);
     if (!account || !isStablecoin(account.currency)) throw new UserError("Choose a stablecoin account.");
