@@ -14,6 +14,7 @@ A small treasury app that holds USDC and USDT in [Nuvion](https://docs.nuvion.co
 | Deposit `/deposit` | One wallet address per account and network, with wrong-network warnings; adding a network | `POST /accounts`, `POST /account-details` |
 | Convert `/convert` | Quote with a locked rate, then confirm before it expires | `POST /fx-quotes`, `GET /fx-quotes/{id}`, `POST /transfers` (`book-transfer`) |
 | Send `/send` | Address validation per network, explicit review step, idempotent send | `POST /counterparties`, `POST /payment-details`, `POST /transfers` (`stablecoin-transfer`) |
+| Recipients `/recipients` | A saved-address book stored in Nuvion, usable as an allow list | `POST /counterparties`, `GET /counterparties` |
 | Activity `/activity` | Transfer list and a status page per transfer | `GET /transfers`, `GET /transfers/{id}` |
 | `/api/webhooks/nuvion` | Signature verification, duplicate-safe event record | none (receives `outflows.*` and `inflows.*` events) |
 | Setup `/setup` | First-run checks and an entity lookup | `GET /entities` |
@@ -37,6 +38,7 @@ npm run dev
 | `NUVION_API_KEY` | Sandbox dashboard, Settings > Developers |
 | `NUVION_ENTITY_ID` | Open `/setup`: it lists your approved entities |
 | `DEMO_PASSWORD` | Optional. Asks for this password (any username) on every page except the webhook route. Set it on any public deployment, because the app has no sign-in |
+| `SEND_ONLY_TO_SAVED` | Optional. `true` allows sends only to saved recipients, enforced on the server |
 | `NUVION_WEBHOOK_SECRET` | Optional. Returned once when you register a webhook. `/setup` shows the URL to register |
 
 The entity needs a fiat account with a balance to convert from. Then use **Deposit** to add a USDC or USDT account on a network, and **Convert** to fund it.
@@ -76,6 +78,8 @@ These come from running the flows against the sandbox. Each one shapes the code.
 13. **Validate addresses before you call Nuvion, but know the limit.** An EVM address is valid on every EVM chain, so no check can tell Base from Ethereum. The send screen therefore makes the operator confirm the network before sending. `validateAddress` doesn't verify the EIP-55 checksum; Nuvion validates the format again.
 14. **A valid webhook signature doesn't mean the latest state.** The status page always reads the transfer from Nuvion and only uses the webhook to show that an event arrived.
 15. **Registering a webhook needs every event in a group.** `POST /entity-webhooks` with `outflows` set returns `422` until all five `outflows` events, both `inflows` events and all three `account_details` events are present as booleans. The signing secret comes back once, in `data.secret`.
+16. **A counterparty can carry your own data in `meta`, and the list returns it.** The Recipients page stores each address book entry as a counterparty with `meta: { kind, chain, address }` and finds them with `GET /counterparties?search=Recipient`. The send action reads the network and address back from Nuvion, so the browser can't change where funds go.
+17. **There is no fee preview.** The API documents no way to price a transfer before creating it. `applicable_fee` appears on the transfer, so the status page shows it and the review step says a fee may apply.
 
 ## Before this is a real treasury
 
@@ -83,7 +87,7 @@ This example leaves out what needs a database or your own controls. Add these be
 
 - **Persistent event log.** The webhook route keeps the last event per transfer in memory. That is empty after a restart and not shared between serverless instances. Store event IDs in a database and ignore repeats.
 - **Authentication and roles.** Anyone who can open this app can send funds. Put it behind sign-in, and require a second approver above a limit.
-- **Address book and allow list.** Save verified recipient addresses, and block sends to anything else.
+- **Allow list by default.** Set `SEND_ONLY_TO_SAVED=true` on any shared deployment, and add an approval step for new recipients.
 - **Rate limiting and an audit trail** on the server actions.
 - **Production keys.** Sandbox and production use different keys. The app refuses any host that isn't `*.nuvion.dev`; change that guard deliberately.
 

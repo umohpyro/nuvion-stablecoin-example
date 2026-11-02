@@ -4,7 +4,8 @@ import { PageShell } from "@/components/page-shell";
 import { SendForm } from "@/components/send-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { accountLabel, loadAccounts, stablecoinAccounts } from "@/lib/treasury";
+import { env } from "@/lib/env";
+import { accountLabel, listRecipients, loadAccounts, stablecoinAccounts } from "@/lib/treasury";
 
 export const metadata: Metadata = { title: "Send" };
 
@@ -19,7 +20,8 @@ export default function SendPage() {
 }
 
 async function Form() {
-  const accounts = stablecoinAccounts(await loadAccounts()).map((a) => ({
+  const [all, recipients] = await Promise.all([loadAccounts(), listRecipients()]);
+  const accounts = stablecoinAccounts(all).map((a) => ({
     id: a.id,
     label: accountLabel(a),
     currency: a.currency,
@@ -28,7 +30,7 @@ async function Form() {
   }));
   return (
     <Card className="max-w-2xl">
-      <CardContent className="pt-6"><SendForm accounts={accounts} /></CardContent>
+      <CardContent className="pt-6"><SendForm accounts={accounts} recipients={recipients} savedOnly={env.sendOnlyToSaved} /></CardContent>
     </Card>
   );
 }

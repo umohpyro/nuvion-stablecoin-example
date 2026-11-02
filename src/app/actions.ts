@@ -6,7 +6,7 @@ import { ConfigError, env } from "@/lib/env";
 import { UserError } from "@/lib/errors";
 import { formatAmount, isStablecoin, parseAmount, ticker } from "@/lib/money";
 import { NuvionError, nuvion, type ApiAccount, type ApiAccountDetails, type ApiTransfer, type FxQuote } from "@/lib/nuvion";
-import { bookDetail, loadAccounts, selfCounterparty, walletDetail } from "@/lib/treasury";
+import { bookDetail, createRecipient, getRecipient, listAccounts, loadAccounts, selfCounterparty, walletDetail } from "@/lib/treasury";
 
 /*
  * Server Actions are public POST endpoints, so every input is validated here. The browser sends account IDs,
@@ -92,7 +92,7 @@ const quoteSchema = z.object({ fromId: id, toId: id, amount: z.string() });
 
 /** Resolves two account IDs to accounts of this entity. Currencies come from Nuvion, never from the browser. */
 async function pair(fromId: string, toId: string) {
-  const all = await loadAccounts();
+  const all = await listAccounts();
   const from = all.find((a) => a.id === fromId);
   const to = all.find((a) => a.id === toId);
   if (!from || !to) throw new UserError("Choose two accounts.");
@@ -129,11 +129,11 @@ export async function convert(input: z.input<typeof convertSchema>) {
   return guard(async () => {
     const v = convertSchema.parse(input);
     const { from, to } = await pair(v.fromId, v.toId);
-    const quote = await nuvion<FxQuote>("GET", `/fx-quotes/${v.quoteId}?entity_id=${env.entityId}`);
+    // Independent calls run together: the quote read and the counterparty lookup.
+    const [quote, counterparty] = await Promise.all([nuvion<FxQuote>("GET", `/fx-quotes/${v.quoteId}?entity_id=${env.entityId}`), selfCounterparty()]);
     if (quote.quote.status !== "active") throw new UserError("This quote has expired or was already used. Get a new one.");
     if (quote.from !== from.currency || quote.to !== to.currency) throw new UserError("This quote doesn't match the selected accounts.");
 
-    const counterparty = await selfCounterparty();
     const paymentDetailId = await bookDetail(counterparty, to);
     const transfer = await nuvion<ApiTransfer>("POST", "/transfers", {
       entity_id: env.entityId,
@@ -156,30 +156,42 @@ export async function convert(input: z.input<typeof convertSchema>) {
 const sendSchema = z.object({
   reference: z.string().regex(/^[A-Za-z0-9-]{8,64}$/, "Invalid reference."),
   accountId: id,
+  /** A saved recipient. Leave out to send to a one-off address, unless the allow list is on. */
+  recipientId: id.optional(),
   chain: walletSchema.shape.chain,
   address: z.string().trim().max(100),
   amount: z.string(),
-  recipient: z.string().trim().min(1, "Enter the recipient's name.").max(80),
+  recipient: z.string().trim().max(80),
 });
 
 /**
  * The address is validated for the chosen chain before anything is created, and Nuvion validates it again.
  * `reference` is generated once per form load, so a retry or double click can't send twice (409 instead).
+ * With SEND_ONLY_TO_SAVED=true the server refuses any address that isn't a saved recipient, whatever the browser sends.
  */
 export async function sendStablecoin(input: z.input<typeof sendSchema>) {
   return guard(async () => {
     const v = sendSchema.parse(input);
-    const bad = validateAddress(v.chain, v.address);
-    if (bad) throw new UserError(bad);
     const amount = parseAmount(v.amount);
     if (!amount) throw new UserError("Enter an amount greater than zero with at most 2 decimals.");
+
+    // The saved recipient, not the browser, decides the network and address.
+    const saved = v.recipientId ? await getRecipient(v.recipientId) : null;
+    if (v.recipientId && !saved) throw new UserError("That saved recipient no longer exists.");
+    if (!saved && env.sendOnlyToSaved) throw new UserError("This treasury only sends to saved recipients. Add one on the Recipients page.");
+    const chain = saved?.chain ?? v.chain;
+    const address = saved?.address ?? v.address.trim();
+    const holder = saved?.name ?? v.recipient;
+    if (!holder) throw new UserError("Enter the recipient's name.");
+    const bad = validateAddress(chain, address);
+    if (bad) throw new UserError(bad);
 
     const account = (await loadAccounts()).find((a) => a.id === v.accountId);
     if (!account || !isStablecoin(account.currency)) throw new UserError("Choose a stablecoin account.");
     if (amount > account.balance.available) throw new UserError(`Available balance is ${formatAmount(account.balance.available, account.currency)}.`);
 
-    const counterparty = await selfCounterparty();
-    const paymentDetailId = await walletDetail(counterparty, account.currency, v.chain, v.address.trim(), v.recipient);
+    const counterparty = saved?.id ?? (await selfCounterparty());
+    const paymentDetailId = await walletDetail(counterparty, account.currency, chain, address, holder);
     const transfer = await nuvion<ApiTransfer>("POST", "/transfers", {
       entity_id: env.entityId,
       account_id: account.id,
@@ -187,10 +199,28 @@ export async function sendStablecoin(input: z.input<typeof sendSchema>) {
       counterparty_id: counterparty,
       amount,
       currency: account.currency,
-      narration: `Send ${ticker(account.currency)} on ${CHAINS[v.chain].name}`,
+      narration: `Send ${ticker(account.currency)} on ${CHAINS[chain].name}`,
       payment_type: "stablecoin-transfer",
       unique_reference: v.reference,
     });
     return { transferId: transfer.id };
+  });
+}
+
+/* ---------------- Recipients: the saved-address book ---------------- */
+
+const recipientSchema = z.object({
+  name: z.string().trim().min(1, "Enter a name.").max(60),
+  chain: walletSchema.shape.chain,
+  address: z.string().trim().max(100),
+});
+
+export async function addRecipient(input: z.input<typeof recipientSchema>) {
+  return guard(async () => {
+    const v = recipientSchema.parse(input);
+    const bad = validateAddress(v.chain, v.address);
+    if (bad) throw new UserError(bad);
+    await createRecipient(v.name, v.chain, v.address);
+    return {};
   });
 }

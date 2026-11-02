@@ -30,6 +30,10 @@ export const env = {
   get webhookSecret() {
     return read("NUVION_WEBHOOK_SECRET");
   },
+  /** When true, sends are only allowed to saved recipients (the allow list). */
+  get sendOnlyToSaved() {
+    return read("SEND_ONLY_TO_SAVED") === "true";
+  },
   /** For the setup page: which settings are present, without revealing any values. */
   get status() {
     return {

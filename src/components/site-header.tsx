@@ -6,6 +6,7 @@ const LINKS = [
   { href: "/deposit", label: "Deposit" },
   { href: "/convert", label: "Convert" },
   { href: "/send", label: "Send" },
+  { href: "/recipients", label: "Recipients" },
   { href: "/activity", label: "Activity" },
 ];
 
