@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { signOut } from "@/app/login/actions";
 import { Badge } from "@/components/ui/badge";
 
 const LINKS = [
@@ -6,6 +7,7 @@ const LINKS = [
   { href: "/deposit", label: "Deposit" },
   { href: "/convert", label: "Convert" },
   { href: "/send", label: "Send" },
+  { href: "/payout", label: "Cash out" },
   { href: "/recipients", label: "Recipients" },
   { href: "/activity", label: "Activity" },
 ];
@@ -24,6 +26,11 @@ export function SiteHeader() {
               {l.label}
             </Link>
           ))}
+          {process.env.DEMO_PASSWORD && (
+            <form action={signOut}>
+              <button type="submit" className="rounded-lg px-2.5 py-2 text-muted-foreground hover:bg-muted hover:text-foreground">Sign out</button>
+            </form>
+          )}
         </nav>
       </div>
     </header>

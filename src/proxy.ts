@@ -1,10 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { passes } from "@/lib/gate";
+import { hasSession, SESSION_COOKIE } from "@/lib/gate";
 
-export function proxy(request: NextRequest) {
-  if (passes(process.env.DEMO_PASSWORD?.trim() || undefined, request.headers.get("authorization"))) return NextResponse.next();
-  return new NextResponse("Password required.", { status: 401, headers: { "WWW-Authenticate": 'Basic realm="Stablecoin Treasury demo"' } });
+export async function proxy(request: NextRequest) {
+  if (await hasSession(process.env.DEMO_PASSWORD?.trim() || undefined, request.cookies.get(SESSION_COOKIE)?.value)) return NextResponse.next();
+  const login = new URL("/login", request.url);
+  login.searchParams.set("next", request.nextUrl.pathname);
+  return NextResponse.redirect(login);
 }
 
-// The webhook route does its own signature check and must stay reachable by Nuvion.
-export const config = { matcher: ["/((?!api/webhooks/nuvion|_next/static|_next/image|favicon.ico).*)"] };
+// The webhook route does its own signature check and must stay reachable by Nuvion. /login must stay open to sign in.
+export const config = { matcher: ["/((?!api/webhooks/nuvion|login|_next/static|_next/image|favicon.ico).*)"] };

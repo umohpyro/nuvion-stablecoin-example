@@ -1,14 +1,27 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { passes } from "./gate.ts";
+import { createSession, hasSession, same } from "./gate.ts";
 
-const basic = (user: string, pass: string) => `Basic ${btoa(`${user}:${pass}`)}`;
+const NOW = 1_800_000_000_000;
 
-test("allows everything when no password is set", () => assert.equal(passes(undefined, null), true));
-test("accepts the right password with any username", () => {
-  assert.equal(passes("s3cret", basic("me", "s3cret")), true);
-  assert.equal(passes("s3cret", basic("", "s3cret")), true);
+test("allows everything when no password is set", async () => assert.equal(await hasSession(undefined, undefined), true));
+
+test("accepts a session signed with the password until it expires", async () => {
+  const cookie = await createSession("s3cret", NOW);
+  assert.equal(await hasSession("s3cret", cookie, NOW + 1000), true);
+  assert.equal(await hasSession("s3cret", cookie, NOW + 13 * 60 * 60 * 1000), false);
 });
-test("rejects wrong, missing, malformed and prefix passwords", () => {
-  for (const h of [basic("me", "nope"), basic("me", "s3cre"), basic("me", "s3cretX"), null, "Bearer s3cret", "Basic !!!"]) assert.equal(passes("s3cret", h), false, String(h));
+
+test("rejects a session after the password changes, and forged, tampered or missing cookies", async () => {
+  const cookie = await createSession("s3cret", NOW);
+  assert.equal(await hasSession("other", cookie, NOW), false);
+  const [exp, sig] = cookie.split(".");
+  assert.equal(await hasSession("s3cret", `${Number(exp) + 1000}.${sig}`, NOW), false);
+  for (const bad of [undefined, "", "abc", "123.", ".abc", "x.y"]) assert.equal(await hasSession("s3cret", bad, NOW), false, String(bad));
+});
+
+test("compares strings of different length without matching", () => {
+  assert.equal(same("abc", "abc"), true);
+  assert.equal(same("abc", "abcd"), false);
+  assert.equal(same("", "a"), false);
 });

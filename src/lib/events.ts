@@ -31,13 +31,13 @@ async function redis<T>(...command: (string | number)[]): Promise<T> {
   return ((await res.json()) as { result: T }).result;
 }
 
-const useRedis = () => Boolean(redisUrl() && redisToken());
+const redisConfigured = () => Boolean(redisUrl() && redisToken());
 
 const memory = ((globalThis as { __nuvionEvents?: Map<string, SeenEvent> }).__nuvionEvents ??= new Map<string, SeenEvent>());
 
 /** Keeps the first delivery of an event ID and ignores repeats: Nuvion retries and can deliver twice. Returns false for a repeat. */
 export async function record(transferId: string, e: SeenEvent): Promise<boolean> {
-  if (useRedis()) {
+  if (redisConfigured()) {
     if (e.eventId && (await redis<string | null>("SET", `seen:${e.eventId}`, "1", "NX", "EX", TTL_SECONDS)) === null) return false;
     await redis("SET", `evt:${transferId}`, JSON.stringify(e), "EX", TTL_SECONDS);
     return true;
@@ -51,7 +51,7 @@ export async function record(transferId: string, e: SeenEvent): Promise<boolean>
 }
 
 export async function lastEvent(transferId: string): Promise<SeenEvent | null> {
-  if (useRedis()) {
+  if (redisConfigured()) {
     try {
       const raw = await redis<string | null>("GET", `evt:${transferId}`);
       return raw ? (JSON.parse(raw) as SeenEvent) : null;

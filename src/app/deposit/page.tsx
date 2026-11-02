@@ -1,5 +1,6 @@
 import { TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
+import QRCode from "qrcode";
 import { Suspense } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { PageShell } from "@/components/page-shell";
@@ -26,6 +27,8 @@ export default function DepositPage() {
 
 async function Wallets() {
   const accounts = stablecoinAccounts(await loadAccounts());
+  // Only an active wallet is safe to share, so only those get a QR code.
+  const qr = new Map(await Promise.all(accounts.filter((a) => a.wallet?.status === "active").map(async (a) => [a.id, await QRCode.toDataURL(a.wallet!.account_number, { margin: 1, width: 160 })] as const)));
 
   return (
     <div className="space-y-6">
@@ -50,6 +53,10 @@ async function Wallets() {
             <CardContent className="space-y-3 text-sm">
               {a.wallet && a.chain ? (
                 <>
+                  {a.wallet.status === "active" && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={qr.get(a.id)} alt={`QR code for the ${a.display_name} address`} width={160} height={160} className="rounded-lg border bg-white" />
+                  )}
                   <p className="break-all rounded-lg bg-muted p-3 font-mono" data-testid="wallet-address">{a.wallet.account_number}</p>
                   <div className="flex items-center justify-between gap-3">
                     <CopyButton value={a.wallet.account_number} label={`Copy ${a.display_name} address`} />

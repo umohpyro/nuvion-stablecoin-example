@@ -6,7 +6,8 @@ import { ConfigError, env } from "@/lib/env";
 import { UserError } from "@/lib/errors";
 import { formatAmount, isStablecoin, parseAmount, ticker } from "@/lib/money";
 import { NuvionError, nuvion, type ApiAccount, type ApiAccountDetails, type ApiTransfer, type FxQuote } from "@/lib/nuvion";
-import { bookDetail, createRecipient, getRecipient, listAccounts, loadAccounts, selfCounterparty, walletDetail } from "@/lib/treasury";
+import { MIN_PAYOUT_MINOR, sortCode, ukAccountNumber } from "@/lib/bank";
+import { bookDetail, createRecipient, getRecipient, listAccounts, loadAccounts, payoutTarget, selfCounterparty, walletDetail } from "@/lib/treasury";
 
 /*
  * Server Actions are public POST endpoints, so every input is validated here. The browser sends account IDs,
@@ -222,5 +223,63 @@ export async function addRecipient(input: z.input<typeof recipientSchema>) {
     if (bad) throw new UserError(bad);
     await createRecipient(v.name, v.chain, v.address);
     return {};
+  });
+}
+
+/* ---------------- Cash out: stablecoin to a UK bank account ---------------- */
+
+const bankSchema = z.object({
+  name: z.string().trim().min(1, "Enter the account holder's name.").max(60),
+  sortCode: z.string().refine((v) => sortCode(v) !== null, "Enter a 6 digit sort code."),
+  accountNumber: z.string().refine((v) => ukAccountNumber(v) !== null, "Enter an 8 digit account number."),
+  bankName: z.string().trim().min(1, "Enter the bank's name.").max(60),
+  line1: z.string().trim().min(1, "Enter a street address.").max(80),
+  city: z.string().trim().min(1, "Enter a city.").max(60),
+  postcode: z.string().trim().min(3, "Enter a postcode.").max(10),
+});
+
+const payoutQuoteSchema = z.object({ fromId: id, amount: z.string() });
+
+export async function getPayoutQuote(input: z.input<typeof payoutQuoteSchema>) {
+  return guard(async () => {
+    const v = payoutQuoteSchema.parse(input);
+    const from = (await listAccounts()).find((a) => a.id === v.fromId);
+    if (!from || !isStablecoin(from.currency)) throw new UserError("Choose a stablecoin account.");
+    const amount = parseAmount(v.amount);
+    if (!amount || amount < MIN_PAYOUT_MINOR) throw new UserError(`Enter at least ${formatAmount(MIN_PAYOUT_MINOR, from.currency)}.`);
+    if (amount > from.balance.available) throw new UserError(`Available balance is ${formatAmount(from.balance.available, from.currency)}.`);
+    const q = await nuvion<FxQuote>("POST", "/fx-quotes", { entity_id: env.entityId, from_currency: from.currency, to_currency: "GBP", amount_from: amount, account_id: from.id });
+    return { quote: { id: q.id, rate: q.rate, amountFrom: q.amount_from, amountTo: q.amount_to, expiresAt: q.quote.expires_at } };
+  });
+}
+
+const payoutSchema = z.object({ quoteId: z.string().regex(/^[0-9A-Z]{26}$/, "Invalid quote."), fromId: id, bank: bankSchema });
+
+/** The quote is re-read from Nuvion and must be active and for this account. Its ID makes the transfer reference, so it can only pay out once. */
+export async function payout(input: z.input<typeof payoutSchema>) {
+  return guard(async () => {
+    const v = payoutSchema.parse(input);
+    const from = (await listAccounts()).find((a) => a.id === v.fromId);
+    if (!from || !isStablecoin(from.currency)) throw new UserError("Choose a stablecoin account.");
+    const quote = await nuvion<FxQuote>("GET", `/fx-quotes/${v.quoteId}?entity_id=${env.entityId}`);
+    if (quote.quote.status !== "active") throw new UserError("This quote has expired or was already used. Get a new one.");
+    if (quote.from !== from.currency || quote.to !== "GBP") throw new UserError("This quote doesn't match the selected account.");
+    if (quote.amount_from > from.balance.available) throw new UserError(`Available balance is ${formatAmount(from.balance.available, from.currency)}.`);
+
+    const b = v.bank;
+    const target = await payoutTarget({ name: b.name, sortCode: sortCode(b.sortCode)!, accountNumber: ukAccountNumber(b.accountNumber)!, bankName: b.bankName, line1: b.line1, city: b.city, postcode: b.postcode });
+    const transfer = await nuvion<ApiTransfer>("POST", "/transfers", {
+      entity_id: env.entityId,
+      account_id: from.id,
+      payment_detail_id: target.paymentDetailId,
+      counterparty_id: target.counterpartyId,
+      amount: quote.amount_from,
+      currency: from.currency,
+      narration: `Cash out ${ticker(from.currency)} to GBP`,
+      payment_type: "bank-transfer",
+      unique_reference: `payout-${quote.id}`,
+      fx_quote_id: quote.id,
+    });
+    return { transferId: transfer.id };
   });
 }

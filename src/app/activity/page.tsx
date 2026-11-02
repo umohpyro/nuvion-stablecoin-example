@@ -31,6 +31,7 @@ async function Rows() {
   return (
     <Card>
       {unsettled && <AutoRefresh />}
+      <div className="flex justify-end px-4"><Link href="/activity/export" prefetch={false} className="text-sm underline underline-offset-4">Download CSV</Link></div>
       <CardContent className="overflow-x-auto">
         {transfers.length === 0 ? (
           <p className="text-sm text-muted-foreground">No transfers yet. Convert some funds to get started.</p>

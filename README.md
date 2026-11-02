@@ -11,11 +11,12 @@ A small treasury app that holds USDC and USDT in [Nuvion](https://docs.nuvion.co
 | Page | What it demonstrates | Nuvion calls |
 |---|---|---|
 | Balances `/` | Balance per account, currency and network | `GET /accounts`, `GET /account-details` |
-| Deposit `/deposit` | One wallet address per account and network, with wrong-network warnings; adding a network | `POST /accounts`, `POST /account-details` |
+| Deposit `/deposit` | One wallet address (with a QR code) per account and network, with wrong-network warnings; adding a network | `POST /accounts`, `POST /account-details` |
 | Convert `/convert` | Quote with a locked rate, then confirm before it expires | `POST /fx-quotes`, `GET /fx-quotes/{id}`, `POST /transfers` (`book-transfer`) |
 | Send `/send` | Address validation per network, explicit review step, idempotent send | `POST /counterparties`, `POST /payment-details`, `POST /transfers` (`stablecoin-transfer`) |
 | Recipients `/recipients` | A saved-address book stored in Nuvion, usable as an allow list | `POST /counterparties`, `GET /counterparties` |
-| Activity `/activity` | Transfer list and a status page per transfer | `GET /transfers`, `GET /transfers/{id}` |
+| Cash out `/payout` | Quote, then pay a stablecoin balance into a UK bank account as GBP | `POST /fx-quotes`, `POST /counterparties`, `POST /payment-details`, `POST /transfers` (`bank-transfer`) |
+| Activity `/activity` | Transfer list, CSV download and a status page per transfer | `GET /transfers`, `GET /transfers/{id}` |
 | `/api/webhooks/nuvion` | Signature verification, duplicate-safe event record | none (receives `outflows.*` and `inflows.*` events) |
 | Setup `/setup` | First-run checks and an entity lookup | `GET /entities` |
 
@@ -37,7 +38,7 @@ npm run dev
 |---|---|
 | `NUVION_API_KEY` | Sandbox dashboard, Settings > Developers |
 | `NUVION_ENTITY_ID` | Open `/setup`: it lists your approved entities |
-| `DEMO_PASSWORD` | Optional. Asks for this password (any username) on every page except the webhook route. Set it on any public deployment, because the app has no sign-in |
+| `DEMO_PASSWORD` | Optional. Turns on a sign-in page: every page except the webhook route needs this password. Set it on any public deployment |
 | `SEND_ONLY_TO_SAVED` | Optional. `true` allows sends only to saved recipients, enforced on the server |
 | `NUVION_WEBHOOK_SECRET` | Optional. Returned once when you register a webhook. `/setup` shows the URL to register |
 
@@ -52,6 +53,7 @@ Verified against `https://api.nuvion.dev`.
 | Creating stablecoin accounts and issuing wallets on `eth`, `base`, `matic` and `sol` (the address is `pending`, then `active` within seconds) | Receiving a real on-chain deposit. Nothing on a blockchain can pay the address, so a stablecoin balance only comes from converting fiat |
 | FX quotes between fiat and stablecoin at a rate of `1` | Sending stablecoin to an external wallet. `POST /transfers` with `stablecoin-transfer` returns `400 error_operation_invalid_for_state` and records the transfer as `failed`, even with an active USDC wallet and enough balance, and the same for USDT |
 | Book transfers that convert between your own accounts, settled in about two seconds | A `book-transfer` has no `pending` phase to observe, so the status page for a conversion is already `successful` |
+| Quotes to GBP, and creating the payee, payment detail and transfer for a bank payout | A bank payout actually settling. The transfer is created as `new`, then ends `failed` with `invalid_payment_request` within seconds, from a stablecoin or a USD account, and the fee is still charged. A USD ACH attempt returned `503 error_system_dependency_unavailable` |
 | Address format validation on payment details (`error_validation_invalid_format`) | Webhooks reaching a local machine. Use a tunnel, or send yourself a signed test event (see below) |
 | Insufficient funds (`error_transfer_insufficient_funds`) | |
 
@@ -80,13 +82,17 @@ These come from running the flows against the sandbox. Each one shapes the code.
 15. **Registering a webhook needs every event in a group.** `POST /entity-webhooks` with `outflows` set returns `422` until all five `outflows` events, both `inflows` events and all three `account_details` events are present as booleans. The signing secret comes back once, in `data.secret`.
 16. **A counterparty can carry your own data in `meta`, and the list returns it.** The Recipients page stores each address book entry as a counterparty with `meta: { kind, chain, address }` and finds them with `GET /counterparties?search=Recipient`. The send action reads the network and address back from Nuvion, so the browser can't change where funds go.
 17. **There is no fee preview.** The API documents no way to price a transfer before creating it. `applicable_fee` appears on the transfer, so the status page shows it and the review step says a fee may apply.
+18. **A bank payout needs the payee's full address on the counterparty,** including `state_or_province` and `postal_code`. Without them `POST /transfers` returns `422` on `counterparty.address.state`. The app's own counterparty has no such address, so each payee gets one (`payoutTarget`).
+19. **A payout can be accepted and then fail.** `POST /transfers` returns `201` with `status: new`, and the failure arrives later as `status: failed` with a `status_reason`. Don't tell the operator it worked until the status is `successful`. The status page refreshes until the transfer settles.
+20. **Duplicate bank details are rejected.** Adding the same `account_number` to a payment detail again returns `422 error_duplicate_resource`, so look for an existing payment detail first (`paymentDetail`).
+21. **Minimum payout.** A 1.00 USDC payout was rejected with `error_validation_value_out_of_range`, so the form asks for at least 5.00.
 
 ## Before this is a real treasury
 
 This example leaves out what needs a database or your own controls. Add these before moving real funds:
 
 - **A real event log.** The webhook route stores the last event per transfer in Upstash Redis when `KV_REST_API_URL` and `KV_REST_API_TOKEN` are set (the Vercel Upstash integration sets them), and in memory otherwise. Events expire after 7 days. Keep a database table of every event if you need history.
-- **Authentication and roles.** Anyone who can open this app can send funds. Put it behind sign-in, and require a second approver above a limit.
+- **Real authentication and roles.** The sign-in is one shared password with a signed session cookie (`src/lib/gate.ts`): no per-user accounts, no login rate limit. Use an auth library such as Better Auth, and require a second approver above a limit.
 - **Allow list by default.** Set `SEND_ONLY_TO_SAVED=true` on any shared deployment, and add an approval step for new recipients.
 - **Rate limiting and an audit trail** on the server actions.
 - **Production keys.** Sandbox and production use different keys. The app refuses any host that isn't `*.nuvion.dev`; change that guard deliberately.

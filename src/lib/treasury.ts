@@ -131,3 +131,49 @@ export const walletDetail = (counterpartyId: string, currency: string, chain: Ch
     { payment_method: "stablecoin-transfer", currency, wallet_address: address, blockchain_network: CHAINS[chain].network },
     { account_holder_name: holder, scheme: "stablecoin" },
   );
+
+/* ---------------- Bank payouts: a counterparty with a full address, found again by its bank details ---------------- */
+
+export interface BankDetails {
+  name: string;
+  sortCode: string;
+  accountNumber: string;
+  bankName: string;
+  line1: string;
+  city: string;
+  postcode: string;
+}
+
+/**
+ * A bank transfer needs the counterparty's address with `state_or_province` and `postal_code`, which the app's own
+ * counterparty doesn't have, so each payee gets its own. Reuses an existing one that has the same bank details.
+ * Shortcut: `state_or_province` reuses the city, because this example doesn't collect a county.
+ */
+export async function payoutTarget(b: BankDetails): Promise<{ counterpartyId: string; paymentDetailId: string }> {
+  const found = await nuvion<List<Counterparty & { meta?: { kind?: string; sort_code?: string; account_number?: string } }>>(
+    "GET",
+    `/counterparties?entity_id=${env.entityId}&search=${encodeURIComponent(b.name)}&limit=100`,
+  );
+  const counterpartyId =
+    found.data.find((c) => c.meta?.kind === "payout" && c.meta.sort_code === b.sortCode && c.meta.account_number === b.accountNumber)?.id ??
+    (
+      await nuvion<Counterparty>("POST", "/counterparties", {
+        type: "business",
+        entity_id: env.entityId,
+        nickname: `Payout: ${b.name}`,
+        meta: { kind: "payout", sort_code: b.sortCode, account_number: b.accountNumber },
+        profile: {
+          legal_name: b.name,
+          relationship: "vendor",
+          email: "treasury@example.com",
+          registered_address: { line1: b.line1, city: b.city, state_or_province: b.city, postal_code: b.postcode, country: "GB" },
+        },
+      })
+    ).id;
+  const paymentDetailId = await paymentDetail(
+    counterpartyId,
+    { payment_method: "bank-transfer", currency: "GBP", account_number: b.accountNumber },
+    { account_holder_name: b.name, country: "GB", sort_code: b.sortCode, bank_name: b.bankName },
+  );
+  return { counterpartyId, paymentDetailId };
+}
