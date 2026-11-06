@@ -15,10 +15,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${figtree.variable} ${mono.variable} h-full antialiased`}>
+    <html lang="en" className={`${figtree.variable} ${mono.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem("theme")||"system";if(t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}` }} />
+      </head>
       <body className="flex min-h-full flex-col">
         {/* usePathname() reads the URL, so the header streams in behind a placeholder of the same height. */}
-        <Suspense fallback={<div className="h-[57px] border-b" />}>
+        <Suspense fallback={<div className="h-[57px] bg-band" />}>
           <SiteHeader gated={Boolean(process.env.DEMO_PASSWORD?.trim())} />
         </Suspense>
         <main className="flex-1">{children}</main>
