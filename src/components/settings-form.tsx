@@ -3,7 +3,7 @@
 import { CircleCheck } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { connect, disconnect, lookup, type Option } from "@/app/settings/actions";
+import { connect, disconnect, lookup, lookupStored, switchEntity, type Option } from "@/app/settings/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,8 +21,11 @@ export function SettingsForm({ connectedEntityId }: { connectedEntityId: string 
   const [entities, setEntities] = useState<Option[] | null>(null);
   const [entityId, setEntityId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [switching, setSwitching] = useState<Option[] | null>(null);
+  const [pick, setPick] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
 
-  const run = (fn: () => Promise<void>) => start(async () => { setError(null); await fn(); });
+  const run = (fn: () => Promise<void>) => start(async () => { setError(null); setMessage(null); await fn(); });
 
   if (connectedEntityId) {
     return (
@@ -35,9 +38,32 @@ export function SettingsForm({ connectedEntityId }: { connectedEntityId: string 
           <dl className="grid grid-cols-[6rem_1fr] gap-y-2">
             <dt className="text-muted-foreground">Entity</dt><dd className="font-mono break-all">{connectedEntityId}</dd>
           </dl>
+          {message && <Alert variant="destructive"><AlertDescription>{message}</AlertDescription></Alert>}
+          {switching ? (
+            <div className="space-y-3 rounded-xl border p-4">
+              <Label htmlFor="switch-entity">Switch to another entity</Label>
+              <select id="switch-entity" className={selectClass} value={pick} onChange={(e) => setPick(e.target.value)}>
+                {switching.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+              <div className="flex gap-3">
+                <Button disabled={pending || !pick || pick === connectedEntityId} onClick={() => run(async () => {
+                  const r = await switchEntity({ entityId: pick });
+                  if (!r.ok) return setMessage(r.error);
+                  setSwitching(null);
+                })}>{pending ? "Switching…" : "Switch"}</Button>
+                <Button variant="ghost" onClick={() => setSwitching(null)}>Cancel</Button>
+              </div>
+            </div>
+          ) : null}
           <div className="flex flex-wrap gap-3">
             <Button render={<Link href="/" />} nativeButton={false}>Open the treasury</Button>
-            <Button variant="ghost" disabled={pending} onClick={() => run(async () => { await disconnect(); })}>Disconnect</Button>
+            <Button variant="outline" disabled={pending} onClick={() => run(async () => {
+              const r = await lookupStored();
+              if (!r.ok) return setMessage(r.error);
+              setSwitching(r.entities);
+              setPick(r.entities.find((e) => e.id === connectedEntityId)?.id ?? r.entities[0]?.id ?? "");
+            })}>Switch entity</Button>
+            <Button variant="ghost" disabled={pending} onClick={() => run(async () => { await disconnect(); })}>Disconnect and forget my key</Button>
           </div>
         </CardContent>
       </Card>
