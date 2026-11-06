@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { CHAINS, CHAIN_IDS, validateAddress, type Chain } from "@/lib/chains";
 import { destination } from "@/lib/destination";
+import { getConfig } from "@/lib/config";
 import { ConfigError, env } from "@/lib/env";
 import { UserError } from "@/lib/errors";
 import { formatAmount, isStablecoin, parseAmount, ticker } from "@/lib/money";
@@ -24,7 +25,7 @@ async function guard<T extends object>(fn: () => Promise<T>): Promise<Result<T>>
     if (e instanceof NuvionError) return { ok: false, error: friendly(e), code: e.type };
     if (e instanceof z.ZodError) return { ok: false, error: e.issues[0]?.message ?? "Please check your input." };
     if (e instanceof UserError) return { ok: false, error: e.message };
-    if (e instanceof ConfigError) return { ok: false, error: `${e.message} Finish setup at /setup.`, code: "config" };
+    if (e instanceof ConfigError) return { ok: false, error: `${e.message} Connect your sandbox on the Settings page.`, code: "config" };
     console.error(e);
     return { ok: false, error: "Something went wrong. Please try again." };
   }
@@ -48,6 +49,8 @@ function friendly(e: NuvionError): string {
   }
 }
 
+const entityId = async () => (await getConfig()).entityId;
+
 const id = z.string().regex(/^[0-9A-Z]{26}$/, "Invalid ID.");
 
 /* ---------------- Deposit: create a stablecoin account and issue its wallet ---------------- */
@@ -66,7 +69,7 @@ export async function createWallet(input: z.input<typeof walletSchema>) {
   return guard(async () => {
     const v = walletSchema.parse(input);
     const account = await nuvion<{ account: ApiAccount }>("POST", "/accounts", {
-      entity_id: env.entityId,
+      entity_id: await entityId(),
       type: "checking",
       currency: v.currency,
       display_name: `${ticker(v.currency)} on ${CHAINS[v.chain].name}`,
@@ -85,7 +88,7 @@ export async function issueWallet(input: { accountId: string; chain: Chain }) {
 }
 
 async function issueWalletFor(accountId: string, chain: Chain) {
-  await nuvion<{ account_details: ApiAccountDetails }>("POST", "/account-details", { account_id: accountId, entity_id: env.entityId, chain });
+  await nuvion<{ account_details: ApiAccountDetails }>("POST", "/account-details", { account_id: accountId, entity_id: await entityId(), chain });
 }
 
 /* ---------------- Convert: FX quote, then a book transfer between two of our accounts ---------------- */
@@ -111,7 +114,7 @@ export async function getQuote(input: z.input<typeof quoteSchema>) {
     if (!amount) throw new UserError("Enter an amount greater than zero with at most 2 decimals.");
     if (amount > from.balance.available) throw new UserError(`Available balance is ${formatAmount(from.balance.available, from.currency)}.`);
     const quote = await nuvion<FxQuote>("POST", "/fx-quotes", {
-      entity_id: env.entityId,
+      entity_id: await entityId(),
       from_currency: from.currency,
       to_currency: to.currency,
       amount_from: amount,
@@ -132,13 +135,13 @@ export async function convert(input: z.input<typeof convertSchema>) {
     const v = convertSchema.parse(input);
     const { from, to } = await pair(v.fromId, v.toId);
     // Independent calls run together: the quote read and the counterparty lookup.
-    const [quote, counterparty] = await Promise.all([nuvion<FxQuote>("GET", `/fx-quotes/${v.quoteId}?entity_id=${env.entityId}`), selfCounterparty()]);
+    const [quote, counterparty] = await Promise.all([nuvion<FxQuote>("GET", `/fx-quotes/${v.quoteId}?entity_id=${await entityId()}`), selfCounterparty()]);
     if (quote.quote.status !== "active") throw new UserError("This quote has expired or was already used. Get a new one.");
     if (quote.from !== from.currency || quote.to !== to.currency) throw new UserError("This quote doesn't match the selected accounts.");
 
     const paymentDetailId = await bookDetail(counterparty, to);
     const transfer = await nuvion<ApiTransfer>("POST", "/transfers", {
-      entity_id: env.entityId,
+      entity_id: await entityId(),
       account_id: from.id,
       payment_detail_id: paymentDetailId,
       counterparty_id: counterparty,
@@ -189,7 +192,7 @@ export async function sendStablecoin(input: z.input<typeof sendSchema>) {
     const counterparty = saved?.id ?? (await selfCounterparty());
     const paymentDetailId = await walletDetail(counterparty, account.currency, chain, address, holder);
     const transfer = await nuvion<ApiTransfer>("POST", "/transfers", {
-      entity_id: env.entityId,
+      entity_id: await entityId(),
       account_id: account.id,
       payment_detail_id: paymentDetailId,
       counterparty_id: counterparty,
@@ -243,7 +246,7 @@ export async function getPayoutQuote(input: z.input<typeof payoutQuoteSchema>) {
     const amount = parseAmount(v.amount);
     if (!amount || amount < MIN_PAYOUT_MINOR) throw new UserError(`Enter at least ${formatAmount(MIN_PAYOUT_MINOR, from.currency)}.`);
     if (amount > from.balance.available) throw new UserError(`Available balance is ${formatAmount(from.balance.available, from.currency)}.`);
-    const q = await nuvion<FxQuote>("POST", "/fx-quotes", { entity_id: env.entityId, from_currency: from.currency, to_currency: "GBP", amount_from: amount, account_id: from.id });
+    const q = await nuvion<FxQuote>("POST", "/fx-quotes", { entity_id: await entityId(), from_currency: from.currency, to_currency: "GBP", amount_from: amount, account_id: from.id });
     return { quote: { id: q.id, rate: q.rate, amountFrom: q.amount_from, amountTo: q.amount_to, expiresAt: q.quote.expires_at } };
   });
 }
@@ -256,7 +259,7 @@ export async function payout(input: z.input<typeof payoutSchema>) {
     const v = payoutSchema.parse(input);
     const from = (await listAccounts()).find((a) => a.id === v.fromId);
     if (!from || !isStablecoin(from.currency)) throw new UserError("Choose a stablecoin account.");
-    const quote = await nuvion<FxQuote>("GET", `/fx-quotes/${v.quoteId}?entity_id=${env.entityId}`);
+    const quote = await nuvion<FxQuote>("GET", `/fx-quotes/${v.quoteId}?entity_id=${await entityId()}`);
     if (quote.quote.status !== "active") throw new UserError("This quote has expired or was already used. Get a new one.");
     if (quote.from !== from.currency || quote.to !== "GBP") throw new UserError("This quote doesn't match the selected account.");
     if (quote.amount_from > from.balance.available) throw new UserError(`Available balance is ${formatAmount(from.balance.available, from.currency)}.`);
@@ -264,7 +267,7 @@ export async function payout(input: z.input<typeof payoutSchema>) {
     const b = v.bank;
     const target = await payoutTarget({ name: b.name, sortCode: sortCode(b.sortCode)!, accountNumber: ukAccountNumber(b.accountNumber)!, bankName: b.bankName, line1: b.line1, city: b.city, postcode: b.postcode });
     const transfer = await nuvion<ApiTransfer>("POST", "/transfers", {
-      entity_id: env.entityId,
+      entity_id: await entityId(),
       account_id: from.id,
       payment_detail_id: target.paymentDetailId,
       counterparty_id: target.counterpartyId,

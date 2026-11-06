@@ -1,12 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { hasSession, SESSION_COOKIE } from "@/lib/gate";
+import { SESSION_COOKIE } from "@/lib/seal";
 
-export async function proxy(request: NextRequest) {
-  if (await hasSession(process.env.DEMO_PASSWORD?.trim() || undefined, request.cookies.get(SESSION_COOKIE)?.value)) return NextResponse.next();
-  const login = new URL("/login", request.url);
-  login.searchParams.set("next", request.nextUrl.pathname);
-  return NextResponse.redirect(login);
+/** Nothing works without the visitor's own keys, so send anyone who hasn't connected to Settings. Presence only: the pages open the cookie. */
+export function proxy(request: NextRequest) {
+  if (request.cookies.has(SESSION_COOKIE)) return NextResponse.next();
+  return NextResponse.redirect(new URL("/settings", request.url));
 }
 
-// The webhook route does its own signature check and must stay reachable by Nuvion. /login must stay open to sign in.
-export const config = { matcher: ["/((?!api/webhooks/nuvion|login|_next/static|_next/image|favicon.ico).*)"] };
+export const config = { matcher: ["/((?!settings|_next/static|_next/image|favicon.ico).*)"] };

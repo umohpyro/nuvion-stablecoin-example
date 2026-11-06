@@ -8,8 +8,7 @@ import { PageShell } from "@/components/page-shell";
 import { StatusBadge } from "@/components/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { env } from "@/lib/env";
-import { lastEvent } from "@/lib/events";
+import { getConfig } from "@/lib/config";
 import { formatAmount, formatDate } from "@/lib/money";
 import { NuvionError, nuvion, type ApiTransfer } from "@/lib/nuvion";
 
@@ -17,7 +16,7 @@ export const metadata: Metadata = { title: "Transfer status" };
 
 export default function TransferPage({ params }: PageProps<"/activity/[id]">) {
   return (
-    <PageShell title="Transfer status" intro="Read from Nuvion on every visit. Webhooks tell this app that something changed; the API read confirms what.">
+    <PageShell title="Transfer status" intro="Read from Nuvion on every visit, so it always shows the current state.">
       <Suspense fallback={<Skeleton className="h-64 w-full max-w-2xl" />}>
         <Transfer params={params} />
       </Suspense>
@@ -29,15 +28,14 @@ async function Transfer({ params }: { params: PageProps<"/activity/[id]">["param
   const { id } = await params;
   if (!/^[0-9A-Z]{26}$/.test(id)) notFound();
 
-  // Nuvion is the source of truth, whether or not a webhook arrived. A signed event proves the sender, not that it is the latest state.
+  // Nuvion is the source of truth: the status is read from the API on every visit.
   let t: ApiTransfer;
   try {
-    t = await nuvion<ApiTransfer>("GET", `/transfers/${id}?entity_id=${env.entityId}`);
+    t = await nuvion<ApiTransfer>("GET", `/transfers/${id}?entity_id=${(await getConfig()).entityId}`);
   } catch (e) {
     if (e instanceof NuvionError && e.httpStatus === 404) notFound();
     throw e;
   }
-  const seen = await lastEvent(t.id);
   const unsettled = t.status === "new" || t.status === "pending";
   const Icon = t.status === "successful" ? CircleCheck : t.status === "failed" ? CircleAlert : Clock;
   const tone = t.status === "successful" ? "text-ok" : t.status === "failed" ? "text-destructive" : "text-warn";
@@ -61,10 +59,6 @@ async function Transfer({ params }: { params: PageProps<"/activity/[id]">["param
           <dt className="text-muted-foreground">Fee</dt><dd>{formatAmount(t.applicable_fee, t.currency)}</dd>
           <dt className="text-muted-foreground">Created</dt><dd>{formatDate(t.created)}</dd>
           <dt className="text-muted-foreground">Transfer ID</dt><dd className="break-all font-mono">{t.id}</dd>
-          <dt className="text-muted-foreground">Webhook</dt>
-          <dd>
-            {seen ? `${seen.event} received ${formatDate(seen.receivedAt)}` : env.webhookSecret ? "No event received yet. The status above was read from the API." : "Not configured. The status above was read from the API."}
-          </dd>
         </dl>
         <Link href="/activity" className="inline-block underline underline-offset-4">Back to activity</Link>
       </CardContent>
