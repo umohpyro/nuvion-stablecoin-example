@@ -1,4 +1,5 @@
 import "server-only";
+import { getConfig } from "@/lib/config";
 import { env } from "@/lib/env";
 
 export type Validation = Record<string, { type?: string; message?: string }>;
@@ -28,13 +29,18 @@ export class NuvionError extends Error {
 
 type Method = "GET" | "POST";
 
-/** Calls the Nuvion API and returns the unwrapped `data`. Server-only: the key never reaches the browser. */
+/** Calls the Nuvion API with the visitor's own key and returns the unwrapped `data`. Server-only: the key never reaches the browser. */
 export async function nuvion<T>(method: Method, path: string, body?: unknown): Promise<T> {
+  return nuvionAs<T>((await getConfig()).apiKey, method, path, body);
+}
+
+/** Same call with an explicit key, for the Settings page while the visitor is still connecting. */
+export async function nuvionAs<T>(apiKey: string, method: Method, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${env.apiUrl}${path}`, {
     method,
     cache: "no-store",
     headers: {
-      Authorization: `Bearer ${env.apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
       // Cloudflare in front of the API blocks the default user agents of many HTTP libraries (Python's, for one).
       "User-Agent": "nuvion-stablecoin-example/0.1 (+https://docs.nuvion.co)",
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),

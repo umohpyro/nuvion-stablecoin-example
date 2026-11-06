@@ -1,6 +1,6 @@
 import "server-only";
 import { CHAINS, isChain, type Chain } from "@/lib/chains";
-import { env } from "@/lib/env";
+import { getConfig } from "@/lib/config";
 import { isStablecoin } from "@/lib/money";
 import { nuvion, type ApiAccount, type ApiAccountDetails, type ApiTransfer, type Counterparty, type List, type PaymentDetail } from "@/lib/nuvion";
 
@@ -9,11 +9,14 @@ export interface TreasuryAccount extends ApiAccount {
   chain: Chain | null;
 }
 
-export const listAccounts = async (): Promise<ApiAccount[]> => (await nuvion<List<ApiAccount>>("GET", `/accounts?entity_id=${env.entityId}&limit=100`)).data;
+/** The visitor's entity. Every Nuvion call acts for it. */
+const entityId = async () => (await getConfig()).entityId;
+
+export const listAccounts = async (): Promise<ApiAccount[]> => (await nuvion<List<ApiAccount>>("GET", `/accounts?entity_id=${await entityId()}&limit=100`)).data;
 
 /** Every account of the entity, with its wallet when it is a stablecoin account. Two calls, any number of accounts. */
 export async function loadAccounts(): Promise<TreasuryAccount[]> {
-  const [accounts, details] = await Promise.all([listAccounts(), nuvion<List<ApiAccountDetails>>("GET", `/account-details?entity_id=${env.entityId}&limit=100`)]);
+  const [accounts, details] = await Promise.all([listAccounts(), nuvion<List<ApiAccountDetails>>("GET", `/account-details?entity_id=${await entityId()}&limit=100`)]);
   return accounts.map((a) => {
     const wallet = details.data.find((d) => d.account_id === a.id && d.asset_type === "stablecoin") ?? null;
     return { ...a, wallet, chain: wallet?.chain && isChain(wallet.chain) ? wallet.chain : null };
@@ -25,7 +28,7 @@ export const accountLabel = (a: TreasuryAccount) =>
 export const stablecoinAccounts = (all: TreasuryAccount[]) => all.filter((a) => isStablecoin(a.currency));
 
 export async function loadTransfers(limit = 50): Promise<ApiTransfer[]> {
-  return (await nuvion<List<ApiTransfer>>("GET", `/transfers?entity_id=${env.entityId}&limit=${limit}`)).data;
+  return (await nuvion<List<ApiTransfer>>("GET", `/transfers?entity_id=${await entityId()}&limit=${limit}`)).data;
 }
 
 /**
@@ -54,13 +57,16 @@ const profile = (name: string, relationship: string) => ({
  * Transfers need a counterparty, even between your own accounts. This app keeps one counterparty for itself,
  * found by nickname. Creating a counterparty is not idempotent, so look before creating.
  */
-export const selfCounterparty = () =>
-  cached("self", async () => {
-    const existing = await nuvion<List<Counterparty>>("GET", `/counterparties?entity_id=${env.entityId}&search=${encodeURIComponent(SELF_NICKNAME)}&limit=100`);
+export const selfCounterparty = async () => {
+  const entity = await entityId();
+  // Keyed by entity: the cache is shared by every visitor on this server instance.
+  return cached(`self|${entity}`, async () => {
+    const existing = await nuvion<List<Counterparty>>("GET", `/counterparties?entity_id=${entity}&search=${encodeURIComponent(SELF_NICKNAME)}&limit=100`);
     const found = existing.data.find((c) => c.nickname === SELF_NICKNAME);
     if (found) return found.id;
-    return (await nuvion<Counterparty>("POST", "/counterparties", { type: "business", entity_id: env.entityId, nickname: SELF_NICKNAME, profile: profile(SELF_NICKNAME, "supplier") })).id;
+    return (await nuvion<Counterparty>("POST", "/counterparties", { type: "business", entity_id: entity, nickname: SELF_NICKNAME, profile: profile(SELF_NICKNAME, "supplier") })).id;
   });
+};
 
 /* ---------------- Saved recipients: counterparties tagged in their `meta` ---------------- */
 
@@ -82,19 +88,19 @@ const toRecipient = (c: RecipientRow): Recipient[] =>
 
 /** A recipient is a counterparty whose `meta` holds the network and address. Nuvion stores it, so this app needs no database. */
 export async function listRecipients(): Promise<Recipient[]> {
-  const r = await nuvion<List<RecipientRow>>("GET", `/counterparties?entity_id=${env.entityId}&search=Recipient&status=active&limit=100`);
+  const r = await nuvion<List<RecipientRow>>("GET", `/counterparties?entity_id=${await entityId()}&search=Recipient&status=active&limit=100`);
   return r.data.flatMap(toRecipient);
 }
 
 export async function getRecipient(id: string): Promise<Recipient | null> {
-  const r = await nuvion<RecipientRow>("GET", `/counterparties/${id}?entity_id=${env.entityId}`);
+  const r = await nuvion<RecipientRow>("GET", `/counterparties/${id}?entity_id=${await entityId()}`);
   return toRecipient(r)[0] ?? null;
 }
 
 export async function createRecipient(name: string, chain: Chain, address: string): Promise<Recipient> {
   const c = await nuvion<Counterparty>("POST", "/counterparties", {
     type: "business",
-    entity_id: env.entityId,
+    entity_id: await entityId(),
     nickname: `${RECIPIENT_PREFIX}${name}`,
     meta: { kind: "recipient", chain, address },
     profile: profile(name, "vendor"),
@@ -105,8 +111,9 @@ export async function createRecipient(name: string, chain: Chain, address: strin
 /** Returns a payment detail on the counterparty that matches `want`, creating it once. */
 async function paymentDetail(counterpartyId: string, want: Partial<PaymentDetail>, create: Record<string, unknown>): Promise<string> {
   const key = ["pd", counterpartyId, want.payment_method, want.currency, want.account_number, want.wallet_address, want.blockchain_network].join("|").toLowerCase();
+  const entity = await entityId();
   return cached(key, async () => {
-    const list = await nuvion<List<PaymentDetail>>("GET", `/counterparties/${counterpartyId}/payment-details?entity_id=${env.entityId}&limit=100`);
+    const list = await nuvion<List<PaymentDetail>>("GET", `/counterparties/${counterpartyId}/payment-details?entity_id=${entity}&limit=100`);
     const same = (p: PaymentDetail) =>
       p.payment_method === want.payment_method &&
       p.currency === want.currency &&
@@ -115,7 +122,7 @@ async function paymentDetail(counterpartyId: string, want: Partial<PaymentDetail
       p.blockchain_network === want.blockchain_network;
     const found = list.data.find(same);
     if (found) return found.id;
-    const made = await nuvion<PaymentDetail>("POST", "/payment-details", { ...create, ...want, entity_id: env.entityId, counterparty_id: counterpartyId });
+    const made = await nuvion<PaymentDetail>("POST", "/payment-details", { ...create, ...want, entity_id: entity, counterparty_id: counterpartyId });
     return made.id;
   });
 }
@@ -150,16 +157,17 @@ export interface BankDetails {
  * Shortcut: `state_or_province` reuses the city, because this example doesn't collect a county.
  */
 export async function payoutTarget(b: BankDetails): Promise<{ counterpartyId: string; paymentDetailId: string }> {
+  const entity = await entityId();
   const found = await nuvion<List<Counterparty & { meta?: { kind?: string; sort_code?: string; account_number?: string } }>>(
     "GET",
-    `/counterparties?entity_id=${env.entityId}&search=${encodeURIComponent(b.name)}&limit=100`,
+    `/counterparties?entity_id=${entity}&search=${encodeURIComponent(b.name)}&limit=100`,
   );
   const counterpartyId =
     found.data.find((c) => c.meta?.kind === "payout" && c.meta.sort_code === b.sortCode && c.meta.account_number === b.accountNumber)?.id ??
     (
       await nuvion<Counterparty>("POST", "/counterparties", {
         type: "business",
-        entity_id: env.entityId,
+        entity_id: entity,
         nickname: `Payout: ${b.name}`,
         meta: { kind: "payout", sort_code: b.sortCode, account_number: b.accountNumber },
         profile: {

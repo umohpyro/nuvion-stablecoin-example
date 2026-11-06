@@ -22,11 +22,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         {/* usePathname() reads the URL, so the header streams in behind a placeholder of the same height. */}
         <Suspense fallback={<div className="h-[57px] bg-band" />}>
-          <SiteHeader gated={Boolean(process.env.DEMO_PASSWORD?.trim())} />
+          <SiteHeader />
         </Suspense>
         <main className="flex-1">{children}</main>
         <footer className="border-t py-8 text-center text-sm text-muted-foreground">
-          <p>An example app on the Nuvion sandbox. Nothing here is real and no funds move on-chain.</p>
+          <p>Sandbox only. Nothing here is real and no funds move on-chain. Your API key is sealed in an encrypted cookie in this browser and expires after eight hours.</p>
         </footer>
         <Toaster richColors closeButton />
       </body>
