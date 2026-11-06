@@ -40,7 +40,7 @@ async function Transfer({ params }: { params: PageProps<"/activity/[id]">["param
   const seen = await lastEvent(t.id);
   const unsettled = t.status === "new" || t.status === "pending";
   const Icon = t.status === "successful" ? CircleCheck : t.status === "failed" ? CircleAlert : Clock;
-  const tone = t.status === "successful" ? "text-emerald-600" : t.status === "failed" ? "text-destructive" : "text-amber-600";
+  const tone = t.status === "successful" ? "text-ok" : t.status === "failed" ? "text-destructive" : "text-warn";
 
   return (
     <Card className="max-w-2xl">

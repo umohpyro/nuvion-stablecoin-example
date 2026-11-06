@@ -27,7 +27,7 @@ export default function SetupPage() {
             <ul className="divide-y">
               {CHECKS.map((c) => (
                 <li key={c.key} className="flex items-start gap-3 py-3">
-                  {status[c.key] ? <CircleCheck className="mt-0.5 size-4 text-emerald-600" aria-label="Set" /> : <Circle className="mt-0.5 size-4 text-muted-foreground" aria-label="Not set" />}
+                  {status[c.key] ? <CircleCheck className="mt-0.5 size-4 text-ok" aria-label="Set" /> : <Circle className="mt-0.5 size-4 text-muted-foreground" aria-label="Not set" />}
                   <div>
                     <p className="font-mono text-sm font-medium">{c.name}</p>
                     <p className="text-sm text-muted-foreground">{c.help}</p>
