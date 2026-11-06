@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { z } from "zod";
 import { clearConfig, configSchema, saveConfig } from "@/lib/config";
 import { ConfigError } from "@/lib/env";
+import { limited } from "@/lib/ratelimit";
 import { NuvionError, nuvionAs, type List } from "@/lib/nuvion";
 
 /*
@@ -28,6 +30,13 @@ async function guard<T extends object>(fn: () => Promise<T>): Promise<Result<T>>
   }
 }
 
+/** These actions call Nuvion with a key a stranger typed, from this server, so cap how often one address can try. */
+async function throttle() {
+  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const wait = limited(ip, 10, 60_000);
+  if (wait) throw new ConfigError(`Too many attempts. Try again in ${wait} seconds.`);
+}
+
 const keySchema = configSchema.pick({ apiKey: true });
 
 export interface Option { id: string; name: string }
@@ -35,6 +44,7 @@ export interface Option { id: string; name: string }
 /** Lists the visitor's approved entities, so they can pick one instead of copying an ID. */
 export async function lookup(input: z.input<typeof keySchema>) {
   return guard(async () => {
+    await throttle();
     const { apiKey } = keySchema.parse(input);
     const all = await nuvionAs<List<{ id: string; name: string; status: string }>>(apiKey, "GET", "/entities?limit=50");
     return { entities: all.data.filter((e) => e.status === "approved").slice(0, 10).map((e): Option => ({ id: e.id, name: e.name })) };
@@ -44,6 +54,7 @@ export async function lookup(input: z.input<typeof keySchema>) {
 /** Checks the key can read the entity's accounts, then saves both in the visitor's sealed cookie. */
 export async function connect(input: z.input<typeof configSchema>) {
   return guard(async () => {
+    await throttle();
     const cfg = configSchema.parse(input);
     await nuvionAs(cfg.apiKey, "GET", `/accounts?entity_id=${cfg.entityId}&limit=1`);
     await saveConfig(cfg);

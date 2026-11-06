@@ -9,6 +9,7 @@ const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"] });
 const mono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.PUBLIC_APP_URL?.trim() || "http://localhost:3000"), // makes the Open Graph image URL absolute
   title: { default: "Stablecoin Treasury", template: "%s · Stablecoin Treasury" },
   description: "An example treasury that holds, converts and sends USDC and USDT through the Nuvion sandbox. No real funds move.",
 };
