@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
-import { clearConfig, configSchema, saveConfig } from "@/lib/config";
+import { clearConfig, configSchema, getConfig, saveConfig } from "@/lib/config";
 import { ConfigError } from "@/lib/env";
 import { limited } from "@/lib/ratelimit";
 import { NuvionError, nuvionAs, type List } from "@/lib/nuvion";
@@ -49,6 +49,22 @@ export async function lookup(input: z.input<typeof keySchema>) {
     const all = await nuvionAs<List<{ id: string; name: string; status: string }>>(apiKey, "GET", "/entities?limit=50");
     return { entities: all.data.filter((e) => e.status === "approved").slice(0, 10).map((e): Option => ({ id: e.id, name: e.name })) };
   });
+}
+
+/** Same list for the key already sealed in the cookie, so a connected visitor can switch entity without retyping it. */
+export async function lookupStored() {
+  return guard(async () => {
+    await throttle();
+    const { apiKey } = await getConfig();
+    const all = await nuvionAs<List<{ id: string; name: string; status: string }>>(apiKey, "GET", "/entities?limit=50");
+    return { entities: all.data.filter((e) => e.status === "approved").slice(0, 10).map((e): Option => ({ id: e.id, name: e.name })) };
+  });
+}
+
+/** Moves a connected visitor to another of their entities. The key stays sealed on the server. */
+export async function switchEntity(input: { entityId: string }) {
+  const { apiKey } = await getConfig();
+  return connect({ apiKey, entityId: input.entityId });
 }
 
 /** Checks the key can read the entity's accounts, then saves both in the visitor's sealed cookie. */
