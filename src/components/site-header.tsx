@@ -26,7 +26,7 @@ export function SiteHeader() {
           <span className="text-lg font-extrabold tracking-tight">Stablecoin Treasury</span>
           <span className="rounded-full bg-white/10 px-3 py-0.5 text-xs font-semibold text-sand-fixed">Sandbox</span>
         </Link>
-        <nav aria-label="Main" className="flex items-center gap-1 text-sm font-medium">
+        <nav aria-label="Main" className="flex w-full items-center gap-1 overflow-x-auto pb-1 text-sm font-medium sm:w-auto sm:pb-0 [&>*]:shrink-0 [&>*]:whitespace-nowrap">
             {LINKS.map((l) => (
               <Link
                 key={l.href}
