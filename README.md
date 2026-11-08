@@ -6,6 +6,8 @@ A small treasury app that holds USDC and USDT in [Nuvion](https://docs.nuvion.co
 
 > The button works once this repository is public. It asks for one value, `SESSION_SECRET`. Visitors add their own Nuvion sandbox key on the Settings page.
 
+> Independent demo. Sandbox only, no real funds move on-chain. Not financial or investment advice. Not affiliated with or endorsed by Circle, Tether or any stablecoin issuer. Use fake details only. See the app's `/privacy` page.
+
 ## What it shows
 
 | Page | What it demonstrates | Nuvion calls |

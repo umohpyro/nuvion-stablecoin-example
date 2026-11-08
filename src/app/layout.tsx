@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Figtree, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import { Suspense } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { Toaster } from "@/components/ui/sonner";
@@ -27,7 +28,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </Suspense>
         <main className="flex-1">{children}</main>
         <footer className="border-t py-8 text-center text-sm text-muted-foreground">
-          <p>Sandbox only. Nothing here is real and no funds move on-chain. Your API key is sealed in an encrypted cookie in this browser and expires after eight hours.</p>
+          <p>Independent demo. Sandbox only, no real funds move on-chain. Not financial or investment advice. Not affiliated with or endorsed by Circle, Tether or any stablecoin issuer.</p>
+          <p className="mt-2">Your API key is sealed in an encrypted cookie in this browser and expires after eight hours. <Link href="/privacy" className="underline underline-offset-4">Privacy</Link></p>
         </footer>
         <Toaster richColors closeButton />
       </body>
