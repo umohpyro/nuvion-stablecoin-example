@@ -33,6 +33,7 @@ export function RecipientForm() {
         });
       }}
     >
+      <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">Use fake details only. Enter made-up names, addresses and contact details, never real personal data.</p>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="rc-name">Name</Label>
