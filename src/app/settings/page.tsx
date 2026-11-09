@@ -21,5 +21,5 @@ export default function SettingsPage() {
 
 async function Form() {
   const cfg = await readConfig();
-  return <SettingsForm connectedEntityId={cfg?.entityId ?? null} />;
+  return <SettingsForm connectedEntityId={cfg?.entityId ?? null} webhookRegistered={Boolean(cfg?.webhookId)} />;
 }

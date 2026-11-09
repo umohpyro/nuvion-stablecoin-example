@@ -10,6 +10,9 @@ export const configSchema = z.object({
   apiKey: z.string().trim().min(10, "Enter your sandbox API key.").max(200),
   /** The approved entity whose accounts are the treasury. */
   entityId: z.string().regex(/^[0-9A-Z]{26}$/, "Choose an entity."),
+  /** Set once the visitor registers a webhook from Settings. The signing secret is shown by Nuvion only once, so it is kept here, sealed. */
+  webhookId: z.string().regex(/^[0-9A-Z]{26}$/).optional(),
+  webhookSecret: z.string().min(10).max(200).optional(),
 });
 export type Config = z.infer<typeof configSchema>;
 
@@ -44,6 +47,22 @@ export async function saveConfig(cfg: Config) {
     path: "/",
     maxAge: 60 * 60 * 8, // eight hours, then they connect again
   });
+}
+
+/** What the webhook receiver needs to verify one visitor's deliveries. It has no cookie, because Nuvion calls it, not the browser. */
+const tokenSchema = z.object({ secret: z.string().min(10).max(200), entityId: configSchema.shape.entityId });
+export type WebhookToken = z.infer<typeof tokenSchema>;
+
+/**
+ * The receiver is stateless: its URL carries the webhook's signing secret sealed with SESSION_SECRET, so any
+ * serverless instance can verify a delivery without a database. Nuvion stores the URL, but without SESSION_SECRET
+ * the token is unreadable and can't be forged.
+ */
+export const sealWebhookToken = (data: WebhookToken) => seal(secret(), data);
+
+export async function openWebhookToken(token: string): Promise<WebhookToken | null> {
+  const parsed = tokenSchema.safeParse(await open(secret(), token));
+  return parsed.success ? parsed.data : null;
 }
 
 export async function clearConfig() {
