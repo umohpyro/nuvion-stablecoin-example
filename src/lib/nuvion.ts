@@ -27,7 +27,7 @@ export class NuvionError extends Error {
   }
 }
 
-type Method = "GET" | "POST";
+type Method = "GET" | "POST" | "PATCH" | "DELETE";
 
 /** Calls the Nuvion API with the visitor's own key and returns the unwrapped `data`. Server-only: the key never reaches the browser. */
 export async function nuvion<T>(method: Method, path: string, body?: unknown): Promise<T> {

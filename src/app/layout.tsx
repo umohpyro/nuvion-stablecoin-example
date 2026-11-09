@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Figtree, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { Suspense } from "react";
+import { LiveRefresh } from "@/components/live-refresh";
 import { SiteHeader } from "@/components/site-header";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -25,6 +26,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* usePathname() reads the URL, so the header streams in behind a placeholder of the same height. */}
         <Suspense fallback={<div className="h-[57px] bg-band" />}>
           <SiteHeader />
+        </Suspense>
+        <Suspense fallback={null}>
+          <LiveRefresh />
         </Suspense>
         <main className="flex-1">{children}</main>
         <footer className="border-t py-8 text-center text-sm text-muted-foreground">

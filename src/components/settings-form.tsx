@@ -3,7 +3,7 @@
 import { CircleCheck } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { connect, disconnect, lookup, lookupStored, switchEntity, type Option } from "@/app/settings/actions";
+import { connect, disconnect, lookup, lookupStored, registerWebhook, removeWebhook, sendTestWebhook, switchEntity, type Option } from "@/app/settings/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +15,7 @@ const DOCS_URL = "https://docs.nuvion.co/authentication";
 
 const selectClass = "h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
-export function SettingsForm({ connectedEntityId }: { connectedEntityId: string | null }) {
+export function SettingsForm({ connectedEntityId, webhookRegistered }: { connectedEntityId: string | null; webhookRegistered: boolean }) {
   const [pending, start] = useTransition();
   const [apiKey, setApiKey] = useState("");
   const [entities, setEntities] = useState<Option[] | null>(null);
@@ -24,8 +24,9 @@ export function SettingsForm({ connectedEntityId }: { connectedEntityId: string 
   const [switching, setSwitching] = useState<Option[] | null>(null);
   const [pick, setPick] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
 
-  const run = (fn: () => Promise<void>) => start(async () => { setError(null); setMessage(null); await fn(); });
+  const run = (fn: () => Promise<void>) => start(async () => { setError(null); setMessage(null); setNote(null); await fn(); });
 
   if (connectedEntityId) {
     return (
@@ -39,6 +40,40 @@ export function SettingsForm({ connectedEntityId }: { connectedEntityId: string 
             <dt className="text-muted-foreground">Entity</dt><dd className="font-mono break-all">{connectedEntityId}</dd>
           </dl>
           {message && <Alert variant="destructive"><AlertDescription>{message}</AlertDescription></Alert>}
+          <div className="space-y-3 rounded-xl border p-4">
+            <p className="font-medium">Live updates</p>
+            {webhookRegistered ? (
+              <>
+                <p className="text-muted-foreground">A webhook is registered for this entity. The treasury refreshes its balances within a few seconds of an event from Nuvion.</p>
+                {note && <p role="status" className="text-ok">{note}</p>}
+                <div className="flex flex-wrap gap-3">
+                  <Button variant="outline" disabled={pending} onClick={() => run(async () => {
+                    const r = await sendTestWebhook();
+                    if (!r.ok) return setMessage(r.error);
+                    setNote(r.status >= 200 && r.status < 300 ? `Test event delivered. The app answered ${r.status}.` : `Nuvion reached the app, but it answered ${r.status}.`);
+                  })}>Send a test event</Button>
+                  <Button variant="ghost" disabled={pending} onClick={() => run(async () => {
+                    const r = await removeWebhook();
+                    if (!r.ok) return setMessage(r.error);
+                    setNote("Webhook removed. The treasury now checks your balances every few seconds instead.");
+                  })}>Remove webhook</Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground">
+                  Without a webhook, the treasury checks your balances every few seconds. Register a webhook and Nuvion tells the app when an account, wallet or transfer event happens instead.
+                  Nuvion only delivers to a public https address, so this works on the deployed app, not on localhost.
+                </p>
+                {note && <p role="status" className="text-ok">{note}</p>}
+                <Button variant="outline" disabled={pending} onClick={() => run(async () => {
+                  const r = await registerWebhook();
+                  if (!r.ok) return setMessage(r.error);
+                  setNote("Webhook registered.");
+                })}>{pending ? "Registering…" : "Register webhook"}</Button>
+              </>
+            )}
+          </div>
           {switching ? (
             <div className="space-y-3 rounded-xl border p-4">
               <Label htmlFor="switch-entity">Switch to another entity</Label>
