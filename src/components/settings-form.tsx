@@ -112,8 +112,8 @@ export function SettingsForm({ connectedEntityId, webhookRegistered }: { connect
         <CardHeader>
           <CardTitle>1. Your sandbox API key</CardTitle>
           <CardDescription>
-            Open <a className="font-medium underline underline-offset-4" href={KEYS_URL} target="_blank" rel="noreferrer">Settings &gt; Developers</a> in the sandbox dashboard
-            (<a className="underline underline-offset-4" href={DOCS_URL} target="_blank" rel="noreferrer">how API keys work</a>). Use a sandbox key only.
+            Open <a className="link font-medium" href={KEYS_URL} target="_blank" rel="noreferrer">Settings &gt; Developers</a> in the sandbox dashboard
+            (<a className="link" href={DOCS_URL} target="_blank" rel="noreferrer">how API keys work</a>). Use a sandbox key only.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Send" };
 
 export default function SendPage() {
   return (
-    <PageShell title="Send" intro="Send USDC or USDT to an external wallet. The address is checked against the network, and you confirm the details before anything is sent.">
+    <PageShell eyebrow="Pay out" title="Send" intro="Send USDC or USDT to an external wallet. The address is checked against the network, and you confirm the details before anything is sent.">
       <Suspense fallback={<Skeleton className="h-64 w-full" />}>
         <Form />
       </Suspense>
@@ -30,7 +30,7 @@ async function Form() {
   }));
   return (
     <Card className="max-w-2xl">
-      <CardContent className="pt-6"><SendForm accounts={accounts} recipients={recipients} savedOnly={env.sendOnlyToSaved} /></CardContent>
+      <CardContent><SendForm accounts={accounts} recipients={recipients} savedOnly={env.sendOnlyToSaved} /></CardContent>
     </Card>
   );
 }

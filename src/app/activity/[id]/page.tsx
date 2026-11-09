@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "Transfer status" };
 
 export default function TransferPage({ params }: PageProps<"/activity/[id]">) {
   return (
-    <PageShell title="Transfer status" intro="Read from Nuvion on every visit, so it always shows the current state.">
+    <PageShell eyebrow="Receipt" title="Transfer status" intro="Read from Nuvion on every visit, so it always shows the current state.">
       <Suspense fallback={<Skeleton className="h-64 w-full max-w-2xl" />}>
         <Transfer params={params} />
       </Suspense>
@@ -50,7 +50,7 @@ async function Transfer({ params }: { params: PageProps<"/activity/[id]">["param
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
-        {t.status === "failed" && t.status_reason && <p className="rounded-lg bg-red-50 p-3 text-red-900">{t.status_reason}</p>}
+        {t.status === "failed" && t.status_reason && <p className="rounded-xl bg-destructive/10 p-3 text-destructive">{t.status_reason}</p>}
         {unsettled && <p className="text-muted-foreground">Still processing. This page refreshes on its own.</p>}
         <dl className="grid gap-3 sm:grid-cols-[10rem_1fr]">
           <dt className="text-muted-foreground">Direction</dt><dd>{t.type === "inflow" ? "Into the account" : "Out of the account"}</dd>
@@ -60,7 +60,7 @@ async function Transfer({ params }: { params: PageProps<"/activity/[id]">["param
           <dt className="text-muted-foreground">Created</dt><dd>{formatDate(t.created)}</dd>
           <dt className="text-muted-foreground">Transfer ID</dt><dd className="break-all font-mono">{t.id}</dd>
         </dl>
-        <Link href="/activity" className="inline-block underline underline-offset-4">Back to activity</Link>
+        <Link href="/activity" className="link inline-block">Back to activity</Link>
       </CardContent>
     </Card>
   );

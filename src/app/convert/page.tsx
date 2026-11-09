@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Convert" };
 
 export default function ConvertPage() {
   return (
-    <PageShell title="Convert" intro="Move value between a fiat account and a stablecoin account. You get a quote with a locked rate first, then confirm before it expires.">
+    <PageShell eyebrow="Swap" title="Convert" intro="Move value between a fiat account and a stablecoin account. You get a quote with a locked rate first, then confirm before it expires.">
       <Suspense fallback={<Skeleton className="h-64 w-full" />}>
         <Form />
       </Suspense>
@@ -21,8 +21,19 @@ export default function ConvertPage() {
 async function Form() {
   const accounts = (await loadAccounts()).map((a) => ({ id: a.id, label: accountLabel(a), currency: a.currency, availableMinor: a.balance.available }));
   return (
-    <Card className="max-w-2xl">
-      <CardContent className="pt-6"><ConvertForm accounts={accounts} /></CardContent>
-    </Card>
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,40rem)_1fr]">
+      <Card>
+        <CardContent><ConvertForm accounts={accounts} /></CardContent>
+      </Card>
+      <aside className="space-y-3 text-sm text-muted-foreground lg:pt-2">
+        <h2 className="text-base font-bold text-foreground">How a conversion runs</h2>
+        <ol className="list-decimal space-y-2 pl-5">
+          <li>Choose the account to pay from, the account to receive into, and an amount.</li>
+          <li>Get a quote. Nuvion locks the rate and the strip shows the time left.</li>
+          <li>Confirm before it expires. The transfer then opens on its status page.</li>
+        </ol>
+        <p>Converting between USD and a stablecoin changes the form of the balance, not its dollar value.</p>
+      </aside>
+    </div>
   );
 }

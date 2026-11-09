@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Settings" };
 
 export default function SettingsPage() {
   return (
-    <PageShell title="Settings" intro="Connect your own Nuvion sandbox. Every deposit, conversion and send in this demo runs in your tenant with your key, so you can confirm it in your own dashboard. Nothing is shared with other visitors.">
+    <PageShell eyebrow="Connection" title="Settings" intro="Connect your own Nuvion sandbox. Every deposit, conversion and send in this demo runs in your tenant with your key, so you can confirm it in your own dashboard. Nothing is shared with other visitors.">
       <div className="max-w-3xl">
         <Suspense fallback={<Skeleton className="h-64 w-full" />}>
           <Form />

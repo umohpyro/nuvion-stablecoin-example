@@ -1,44 +1,23 @@
-"use client";
-
+import { Settings, Users } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { BrandMark } from "@/components/brand";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 
-const LINKS = [
-  { href: "/", label: "Balances" },
-  { href: "/deposit", label: "Deposit" },
-  { href: "/convert", label: "Convert" },
-  { href: "/send", label: "Send" },
-  { href: "/payout", label: "Cash out" },
-  { href: "/recipients", label: "Recipients" },
-  { href: "/activity", label: "Activity" },
-  { href: "/settings", label: "Settings" },
-];
+const tool = "grid size-10 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
 
+/** A light bar that scrolls away: the brand on the left, the tools on the right. Navigation lives in the dock. */
 export function SiteHeader() {
-  const pathname = usePathname();
-  const current = (href: string) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
   return (
-    <header className="sticky top-0 z-30 bg-band text-band-foreground">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 px-4 py-3 sm:px-6">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="grid size-8 place-items-center rounded-[10px] bg-primary text-sm font-extrabold text-primary-foreground" aria-hidden>S</span>
-          <span className="text-lg font-extrabold tracking-tight">Stablecoin Treasury</span>
-          <span className="rounded-full bg-white/10 px-3 py-0.5 text-xs font-semibold text-sand-fixed">Sandbox</span>
-        </Link>
-        <nav aria-label="Main" className="flex w-full items-center gap-1 overflow-x-auto pb-1 text-sm font-medium sm:w-auto sm:pb-0 [&>*]:shrink-0 [&>*]:whitespace-nowrap">
-            {LINKS.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                aria-current={current(l.href) ? "page" : undefined}
-                className={`rounded-full px-3 py-2 hover:bg-white/10 ${current(l.href) ? "bg-white/15 text-band-foreground" : "text-band-foreground/75 hover:text-band-foreground"}`}
-              >
-                {l.label}
-              </Link>
-            ))}
-            <ThemeSwitcher />
-        </nav>
+    <header className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:px-6">
+      <Link href="/" className="flex items-center gap-2.5">
+        <BrandMark />
+        <span className="text-lg font-extrabold tracking-tight">Treasury</span>
+        <span className="hidden rounded-full bg-c-soft px-2.5 py-0.5 text-xs font-bold text-c-text sm:inline">Sandbox</span>
+      </Link>
+      <div className="flex items-center gap-0.5">
+        <Link href="/recipients" className={tool} aria-label="Recipients" title="Recipients"><Users className="size-5" aria-hidden /></Link>
+        <Link href="/settings" className={tool} aria-label="Settings" title="Settings"><Settings className="size-5" aria-hidden /></Link>
+        <ThemeSwitcher />
       </div>
     </header>
   );
