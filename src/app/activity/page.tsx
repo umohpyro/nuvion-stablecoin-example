@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Activity" };
 
 export default function ActivityPage() {
   return (
-    <PageShell title="Activity" intro="Recent transfers on every account. Each row opens its status page.">
+    <PageShell eyebrow="Ledger" title="Activity" intro="Recent transfers on every account. Each row opens its status page.">
       <Suspense fallback={<Skeleton className="h-64 w-full" />}>
         <Rows />
       </Suspense>
@@ -31,7 +31,7 @@ async function Rows() {
   return (
     <Card>
       {unsettled && <AutoRefresh />}
-      <div className="flex justify-end px-4"><Link href="/activity/export" prefetch={false} className="text-sm underline underline-offset-4">Download CSV</Link></div>
+      <div className="flex justify-end px-4"><Link href="/activity/export" prefetch={false} className="link text-sm">Download CSV</Link></div>
       <CardContent className="overflow-x-auto">
         {transfers.length === 0 ? (
           <p className="text-sm text-muted-foreground">No transfers yet. Convert some funds to get started.</p>
@@ -50,7 +50,7 @@ async function Rows() {
               {transfers.map((t) => (
                 <tr key={t.id} className="border-b last:border-0">
                   <td className="py-3 pr-4 whitespace-nowrap">
-                    <Link href={`/activity/${t.id}`} className="underline-offset-4 hover:underline">{formatDate(t.created)}</Link>
+                    <Link href={`/activity/${t.id}`} className="font-semibold text-c-text underline-offset-4 hover:underline">{formatDate(t.created)}</Link>
                   </td>
                   <td className="py-3 pr-4">{KIND[t.payment_type] ?? t.payment_type} {t.type === "inflow" ? "in" : "out"}</td>
                   <td className="py-3 pr-4">{name(t.account_id)}</td>

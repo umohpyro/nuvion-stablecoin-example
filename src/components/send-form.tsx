@@ -53,7 +53,7 @@ export function SendForm({ accounts, recipients, savedOnly }: { accounts: SendAc
     setFailure(null);
   };
 
-  if (savedOnly && recipients.length === 0) return <p className="text-sm text-muted-foreground">This treasury only sends to saved recipients. <Link href="/recipients" className="underline underline-offset-4">Add one first</Link>.</p>;
+  if (savedOnly && recipients.length === 0) return <p className="text-sm text-muted-foreground">This treasury only sends to saved recipients. <Link href="/recipients" className="link">Add one first</Link>.</p>;
   if (accounts.length === 0) return <p className="text-sm text-muted-foreground">Create a stablecoin account on the Deposit page first.</p>;
 
   if (review && account && minor) {

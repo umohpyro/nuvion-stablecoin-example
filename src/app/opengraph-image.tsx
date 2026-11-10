@@ -7,9 +7,9 @@ export const contentType = "image/png";
 export default function OpengraphImage() {
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 72, color: "#F4F2F2", background: "linear-gradient(135deg, #300402 30%, #7a1030)" }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 72, color: "#F4F2F2", background: "linear-gradient(135deg, #2F6FE0 0%, #1B3A86 38%, #300402 92%)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 16, background: "#F63080", display: "flex" }} />
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: "#2F6FE0", border: "3px solid #F4F2F2", display: "flex" }} />
           <div style={{ fontSize: 30, fontWeight: 700, color: "#F6DCD5", display: "flex" }}>Nuvion sandbox example</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>

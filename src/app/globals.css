@@ -16,6 +16,13 @@
   --color-band: var(--band);
   --color-band-foreground: var(--band-foreground);
   --color-sand-fixed: var(--sand-fixed);
+  --color-c: var(--c);
+  --color-c-text: var(--c-text);
+  --color-c-soft: var(--c-soft);
+  --color-asset-usdc: var(--asset-usdc);
+  --color-asset-usdt: var(--asset-usdt);
+  --color-asset-rlusd: var(--asset-rlusd);
+  --color-asset-fiat: var(--asset-fiat);
   --shadow-card: var(--shadow);
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -61,7 +68,7 @@
   --destructive: #b42323;
   --border: #ecdad4;
   --input: #ecdad4;
-  --ring: #f63080;
+  --ring: #2f6fe0;                /* Treasury blue focus ring (the category colour) */
   --radius: 1rem;                 /* rounded-xl cards land at about 22px */
   --pink-text: #c41e68;           /* pink as text on light, AA */
   --ok: #1f7a4a;                  /* successful status */
@@ -70,6 +77,17 @@
   --band-foreground: #f4f2f2;
   --sand-fixed: #f6dcd5;          /* sand on dark bands in both themes */
   --shadow: 0 18px 44px -24px rgba(48, 4, 2, 0.4);
+  /* Treasury's own category colour (blue): hero band, active dock item, links, focus. */
+  --c: #2f6fe0;
+  --c-text: #2459b8;              /* blue as text on light grounds, AA */
+  --c-soft: #e7effd;              /* tint behind chips and rows */
+  --c-deep: #1b3a86;              /* mid stop of the hero gradient */
+  --hero: linear-gradient(135deg, var(--c) 0%, var(--c-deep) 38%, var(--band) 92%);
+  /* One colour per asset, so a balance is recognisable at a glance. */
+  --asset-usdc: #2f6fe0;
+  --asset-usdt: #0e8f83;
+  --asset-rlusd: #8e3fa8;
+  --asset-fiat: #a8531c;
 }
 
 /* Dark is designed with light: the same tokens on an Earth-tinted ground. */
@@ -94,6 +112,12 @@
   --warn: #ffb38a;
   --band: #0f0302;
   --shadow: 0 18px 44px -24px rgba(0, 0, 0, 0.8);
+  --ring: #7fa8ff;
+  --c-text: #8fb3ff;
+  --c-soft: #1a2a4d;
+  --c-deep: #14285a;
+  --hero: linear-gradient(135deg, #1f4fae 0%, var(--c-deep) 40%, var(--band) 92%);
+  --asset-fiat: #d9783a;
 }
 
 @layer base {
@@ -105,5 +129,16 @@
   }
   html {
     @apply font-sans;
+  }
+  /* Inline links in prose take the category colour. */
+  a.link,
+  .link {
+    @apply text-c-text underline underline-offset-4 hover:no-underline;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
   }
 }

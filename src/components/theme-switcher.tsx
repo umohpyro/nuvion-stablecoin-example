@@ -39,7 +39,7 @@ export function ThemeSwitcher() {
   };
 
   return (
-    <div role="group" aria-label="Theme" className="inline-flex rounded-full bg-white/10 p-0.5">
+    <div role="group" aria-label="Theme" className="ml-1 inline-flex rounded-full bg-muted p-0.5">
       {MODES.map(([m, Icon]) => (
         <button
           key={m}
@@ -48,7 +48,7 @@ export function ThemeSwitcher() {
           aria-pressed={mode === m}
           aria-label={m}
           title={m[0].toUpperCase() + m.slice(1)}
-          className="grid h-8 w-9 place-items-center rounded-full text-band-foreground transition-colors aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+          className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground aria-pressed:bg-c aria-pressed:text-white"
         >
           <Icon className="size-4" aria-hidden />
         </button>
